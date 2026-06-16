@@ -8,7 +8,12 @@ This file is updated at every **sprint & PR closure**.
 
 ## [Unreleased]
 
-> Milestone **M1 (v0.1-alpha)** ready after Sprint 3 — pending `develop → main` release merge.
+> ⏸️ **Stopping point (2026-06-17).** Resuming next session with **Sprint 4 — Coder Agent & Inner Loop (Faz 4)** — 🔴 highest-risk sprint (Docker self-fix), two PRs (#4 Coder, #5 Inner Loop). Will introduce the deferred LiteLLM ↔ LangChain `BaseChatModel` bridge (decision #3). See `cache.md` for full resume context.
+
+---
+
+## [v0.1-alpha] — 2026-06-17 — 🏷️ Milestone M1: Core Engine
+Released via `develop → main`. Aggregates Sprints 1–3: LiteLLM Router fallback, LangGraph `StateGraph` + PostgreSQL checkpointing, and the Architect Agent (ADR generation). Core engine runs end-to-end; 42 tests + `mypy --strict` green; CI active.
 
 ---
 
