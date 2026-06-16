@@ -8,7 +8,23 @@ This file is updated at every **sprint & PR closure**.
 
 ## [Unreleased]
 
-> In progress: Sprint 3 — Architect Agent (Faz 3). Closes Milestone **M1 (v0.1-alpha)**.
+> Milestone **M1 (v0.1-alpha)** ready after Sprint 3 — pending `develop → main` release merge.
+
+---
+
+## [Sprint 3] — Architect Agent (Faz 3) — 2026-06-17
+### Added
+- **PR #3**: First real LLM-backed agent — the Architect, producing a structured ADR.
+  - `agents/base.py`: abstract `BaseAgent` built on `LiteLLMClient` (preserves Router fallback + token/cost tracking); `complete_structured()` JSON→Pydantic helper; `AgentError` / `AgentOutputError`.
+  - `agents/architect/schemas.py`: `ADRDocument`, `TechStack`, `FolderStructure`, `ArchitectureDecision` (Pydantic v2, `extra="ignore"`).
+  - `agents/architect/tools.py`: `analyze_requirements` (keyword platform heuristic) + `default_folder_structure` (per-framework fallback layout).
+  - `agents/architect/agent.py`: `ArchitectAgent` — `analyze_requirements()`, `select_tech_stack()`, `generate_adr()`, `run()`.
+  - `config/prompts/architect_system.md`: platform-selection logic, Clean Architecture rules, JSON-only ADR output contract.
+  - Tests: `test_architect.py` (mock-LLM ADR generation, schema validation, tool heuristics) + shared `conftest.py` offline architect stub for graph tests. 42 tests passing; `mypy --strict` clean across `src/` and `tests/`.
+### Changed
+- `orchestrator/nodes.py`: `architect` stub → real `ArchitectAgent` integration (the other 8 nodes remain stubs until their sprints).
+### Notes
+- LLM access uses `LiteLLMClient` + structured output (**decision #2**), not `create_react_agent`, to keep the Sprint 1 Router fallback/cost infrastructure intact. The `make_handoff_tool` react-supervisor and a LangChain `BaseChatModel` bridge are **deferred to Sprint 4 (Coder)**, where a genuine tool-loop is required; the existing edge-based routing already realizes the supervisor→architect handoff.
 
 ---
 

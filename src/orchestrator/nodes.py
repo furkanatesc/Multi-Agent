@@ -23,6 +23,7 @@ from typing import Any
 
 from langchain_core.messages import AIMessage
 
+from src.agents.architect.agent import ArchitectAgent
 from src.orchestrator.state import AgentState
 
 # Nominal per-step stub cost so the cost accumulator is visibly non-zero.
@@ -60,21 +61,13 @@ def supervisor(state: AgentState) -> dict[str, Any]:
 
 
 def architect(state: AgentState) -> dict[str, Any]:
-    """Stub Architect: emits a placeholder ADR/spec."""
-    platform = state.get("platform") or "react-native"
-    spec = {
-        "platform": platform,
-        "decision": "stub-adr",
-        "summary": f"Placeholder architecture for: {state.get('prompt', '')[:80]}",
-    }
-    return _step(
-        "architect",
-        "[architect] stub ADR generated",
-        architecture_spec=spec,
-        platform=platform,
-        status="coding",
-        next_agent="coder",
-    )
+    """Architect node: generates a structured ADR via :class:`ArchitectAgent`.
+
+    Real LLM-backed agent (Sprint 3). The remaining nodes below are still stubs
+    until their respective sprints. The agent returns a partial state update
+    (architecture_spec + platform + incremental cost).
+    """
+    return ArchitectAgent().run(state)
 
 
 def coder(state: AgentState) -> dict[str, Any]:
