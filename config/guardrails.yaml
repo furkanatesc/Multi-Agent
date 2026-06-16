@@ -1,0 +1,13 @@
+# Guardrails and constraints configuration
+max_inner_loop_iterations: 3
+max_outer_loop_iterations: 5
+max_project_cost_usd: 10.0
+timeout_seconds: 30
+
+# Token limits per agent invocation
+agent_token_limits:
+  architect-model: 100000
+  coder-model: 150000
+  reviewer-model: 100000
+  security-model: 100000
+  test-generator-model: 100000

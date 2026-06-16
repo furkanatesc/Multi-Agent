@@ -1,0 +1,39 @@
+model_list:
+  - model_name: architect-model
+    litellm_params:
+      model: gemini/gemini-2.5-pro
+      api_key: os.environ/GEMINI_API_KEY
+      timeout: 30
+      max_retries: 2
+  - model_name: coder-model
+    litellm_params:
+      model: claude-3-5-sonnet-20241022
+      api_key: os.environ/ANTHROPIC_API_KEY
+      timeout: 30
+      max_retries: 2
+  - model_name: reviewer-model
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+      timeout: 30
+      max_retries: 2
+  - model_name: security-model
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+      timeout: 30
+      max_retries: 2
+  - model_name: test-generator-model
+    litellm_params:
+      model: claude-3-5-sonnet-20241022
+      api_key: os.environ/ANTHROPIC_API_KEY
+      timeout: 30
+      max_retries: 2
+
+# Fallback definitions
+fallbacks:
+  - architect-model: [coder-model, reviewer-model]
+  - coder-model: [architect-model, reviewer-model]
+  - reviewer-model: [coder-model, architect-model]
+  - security-model: [architect-model]
+  - test-generator-model: [reviewer-model]
