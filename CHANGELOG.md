@@ -1,0 +1,59 @@
+# Changelog
+
+All notable changes to the **Multi-Agent Mobile App Development System** are documented in this file.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+This file is updated at every **sprint & PR closure**.
+
+---
+
+## [Unreleased]
+
+> Milestone **M1 (v0.1-alpha)** ready after Sprint 3 — pending `develop → main` release merge.
+
+---
+
+## [Sprint 3] — Architect Agent (Faz 3) — 2026-06-17
+### Added
+- **PR #3**: First real LLM-backed agent — the Architect, producing a structured ADR.
+  - `agents/base.py`: abstract `BaseAgent` built on `LiteLLMClient` (preserves Router fallback + token/cost tracking); `complete_structured()` JSON→Pydantic helper; `AgentError` / `AgentOutputError`.
+  - `agents/architect/schemas.py`: `ADRDocument`, `TechStack`, `FolderStructure`, `ArchitectureDecision` (Pydantic v2, `extra="ignore"`).
+  - `agents/architect/tools.py`: `analyze_requirements` (keyword platform heuristic) + `default_folder_structure` (per-framework fallback layout).
+  - `agents/architect/agent.py`: `ArchitectAgent` — `analyze_requirements()`, `select_tech_stack()`, `generate_adr()`, `run()`.
+  - `config/prompts/architect_system.md`: platform-selection logic, Clean Architecture rules, JSON-only ADR output contract.
+  - Tests: `test_architect.py` (mock-LLM ADR generation, schema validation, tool heuristics) + shared `conftest.py` offline architect stub for graph tests. 42 tests passing; `mypy --strict` clean across `src/` and `tests/`.
+### Changed
+- `orchestrator/nodes.py`: `architect` stub → real `ArchitectAgent` integration (the other 8 nodes remain stubs until their sprints).
+### Notes
+- LLM access uses `LiteLLMClient` + structured output (**decision #2**), not `create_react_agent`, to keep the Sprint 1 Router fallback/cost infrastructure intact. The `make_handoff_tool` react-supervisor and a LangChain `BaseChatModel` bridge are **deferred to Sprint 4 (Coder)**, where a genuine tool-loop is required; the existing edge-based routing already realizes the supervisor→architect handoff.
+
+---
+
+## [Sprint 2] — Orchestration & State (Faz 2) — 2026-06-17
+### Added
+- **PR #2**: LangGraph `StateGraph` orchestration skeleton, state reducers & PostgreSQL checkpointing.
+  - `orchestrator/state.py`: `AgentState` (TypedDict) with reducer channels — `add_messages`, `operator.add` (cost/iteration), custom `merge_source_code`; boundary Pydantic models `UserRequest` / `AgentResponse` + `create_initial_state` / `build_response` helpers.
+  - `orchestrator/nodes.py`: 9 stub agent nodes (`supervisor` → `deployer`) returning partial-dict updates.
+  - `orchestrator/edges.py`: conditional routers — `cost_check`, `should_continue_inner_loop`, `should_escalate`, `security_gate`, `review_decision` (thresholds from `guardrails.yaml`).
+  - `orchestrator/graph.py`: full pipeline topology compiled with a pluggable checkpointer.
+  - `db/models.py`: SQLAlchemy 2.0 models — `Project`, `AgentRun`, `HITLApproval`, `CostLog` (JSONB on Postgres).
+  - `db/session.py`: lazy engine/session + `PostgresSaver` connection pool; psycopg-v3 URL normalization.
+  - `alembic/` + `alembic.ini`: `001_initial` migration for the four tables.
+  - `docker-compose.yml`: `postgres:16` + `redis:7` dev services (matching config defaults).
+  - `.github/workflows/ci.yml`: CI pipeline — `mypy --strict` + `alembic upgrade head` + `pytest` against a live Postgres service.
+  - Tests: `test_state.py`, `test_orchestrator.py`, `test_checkpoint_postgres.py` (live-Postgres integration, auto-skips when unavailable). 33 tests passing.
+### Changed
+- `pyproject.toml`: added `sqlalchemy>=2.0`, `alembic>=1.13`; registered `integration` pytest marker.
+- `core/logging.py`, `integrations/litellm_client.py`: minor typing fixes to keep `mypy --strict` green.
+
+---
+
+## [Sprint 1] — Infrastructure & LiteLLM (Faz 1) — 2026-06-17
+### Added
+- **PR #1**: Project skeleton & LiteLLM Router foundation.
+  - `pyproject.toml`: Python 3.11+ project + pinned core stack (`langgraph>=1.0.10`, `litellm>=1.50`, `pydantic>=2`, FastAPI, structlog, psycopg).
+  - `config/litellm_config.yaml`: model definitions (Gemini 2.5 Pro, Claude Sonnet 4, GPT-4o) + fallback chains.
+  - `config/guardrails.yaml`: inner/outer loop caps, max cost, per-agent token limits, timeout.
+  - `core/config.py`: Pydantic `Settings` (`.env` + YAML config merge).
+  - `core/logging.py`: structlog setup — JSON in non-TTY, colorized console in TTY.
+  - `integrations/litellm_client.py`: `LiteLLMClient` — `Router` wrapper with fallback, token tracking & cost calculation.
+  - Tests: `test_litellm_client.py` (init, completion/cost tracking, fallback failure).

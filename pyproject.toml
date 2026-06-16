@@ -51,6 +51,9 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+markers = [
+    "integration: tests requiring live infrastructure (PostgreSQL/Docker); auto-skip when unavailable",
+]
 
 [tool.mypy]
 strict = true
