@@ -1,6 +1,7 @@
 """Unit tests for state reducers and boundary models."""
 
 import operator
+from typing import Any
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
@@ -37,8 +38,10 @@ def test_merge_source_code_handles_none() -> None:
 
 def test_add_messages_reducer_appends() -> None:
     """The messages channel appends via add_messages."""
-    base = [HumanMessage(content="hi")]
-    merged = add_messages(base, [AIMessage(content="hello")])
+    base: Any = [HumanMessage(content="hi")]
+    addition: Any = [AIMessage(content="hello")]
+    merged = add_messages(base, addition)
+    assert isinstance(merged, list)
     assert len(merged) == 2
 
 
@@ -108,7 +111,7 @@ def test_build_response_projects_state() -> None:
 
 def test_build_response_handles_partial_state() -> None:
     """build_response reads defensively from a near-empty state."""
-    resp = build_response({})  # type: ignore[arg-type]
+    resp = build_response({})
     assert resp.status == "pending"
     assert resp.total_cost_usd == 0.0
     assert resp.source_code == {}

@@ -1,6 +1,6 @@
 """End-to-end graph flow tests (stub nodes) and conditional-edge unit tests."""
 
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
@@ -8,6 +8,9 @@ from langgraph.checkpoint.memory import InMemorySaver
 from src.orchestrator import edges
 from src.orchestrator.graph import build_graph
 from src.orchestrator.state import AgentState, UserRequest, create_initial_state
+
+# Note: the autouse `_stub_architect_agent` fixture (tests/conftest.py) replaces
+# the graph's ArchitectAgent with an offline stub for every test here.
 
 
 # --------------------------------------------------------------------------- #
@@ -49,7 +52,8 @@ def test_graph_accumulates_reducer_channels() -> None:
 def test_graph_populates_domain_state() -> None:
     """Stub nodes populate architecture, code, security, and review channels."""
     _graph, _config, final = _run()
-    assert final["architecture_spec"]["platform"] == "react-native"
+    assert final["platform"] == "react-native"
+    assert final["architecture_spec"]["tech_stack"]["platform"] == "react-native"
     assert "src/App.stub.txt" in final["source_code"]
     assert final["security_score"] == 90
     assert final["review_decision"] == "PASS"
@@ -86,7 +90,7 @@ def test_two_threads_are_isolated() -> None:
 
 def _state(**kwargs: Any) -> AgentState:
     """Build a minimal mock AgentState for edge tests."""
-    return AgentState(**kwargs)  # type: ignore[typeddict-item]
+    return cast(AgentState, dict(kwargs))
 
 
 def test_cost_check_halts_when_over_budget() -> None:
