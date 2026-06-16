@@ -1,0 +1,41 @@
+# Local development services for Sprint 2 (orchestration & state).
+# Credentials/ports match the defaults in src/core/config.py so that
+# `alembic upgrade head` and the PostgresSaver checkpointer connect out of the box:
+#   DATABASE_URL = postgresql://postgres:postgres@localhost:5432/multi_agent_db
+#   REDIS_URL    = redis://localhost:6379/0
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: multi_agent_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: multi_agent_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d multi_agent_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: multi_agent_redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
