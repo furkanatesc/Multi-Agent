@@ -8,7 +8,23 @@ This file is updated at every **sprint & PR closure**.
 
 ## [Unreleased]
 
-> ⏸️ **Stopping point (2026-06-17).** Resuming next session with **Sprint 4 — Coder Agent & Inner Loop (Faz 4)** — 🔴 highest-risk sprint (Docker self-fix), two PRs (#4 Coder, #5 Inner Loop). Will introduce the deferred LiteLLM ↔ LangChain `BaseChatModel` bridge (decision #3). See `cache.md` for full resume context.
+### Sprint 4 — Coder Agent & Inner Loop (Faz 4) — 🔴 highest-risk sprint (Docker self-fix)
+In progress. Two PRs: **#4 Coder Agent** (this entry), **#5 Inner Loop** (DockerRunner + Dockerfiles).
+
+#### Added (PR #4 — Coder Agent)
+- `integrations/litellm_chat_model.py`: **`LiteLLMChatModel`** — the deferred LiteLLM ↔ LangChain `BaseChatModel` bridge (**decision #4**). Routes every `create_react_agent` model call through `LiteLLMClient`, so Router fallback + token/cost tracking stay intact. Converts LangChain messages ↔ OpenAI dicts, parses `tool_calls` (valid → `ToolCall`, malformed → `invalid_tool_calls`), and exposes `bind_tools`.
+- `agents/coder/tools.py`: in-memory `Workspace` (`{path: content}`) with path-safety (rejects absolute paths / `..` traversal) + `make_file_tools()` → `write_file` / `read_file` / `list_files` LangChain tools for the tool-loop.
+- `agents/coder/schemas.py`: `GeneratedModule` / `SelfFixResult` structured summaries (Pydantic v2, `extra="ignore"`).
+- `agents/coder/agent.py`: **`CoderAgent`** — `generate_module()` + `self_fix()` run a `create_react_agent` tool-loop over the bridge (writing into the workspace), then request a structured summary; `run()` returns the `source_code` map and inner-loop routing. Primary `coder-model` (Claude Sonnet), fallback Gemini.
+- `config/prompts/coder_system.md`: Coder system prompt (file tools, complete-files rule, self-fix mode).
+- Tests: `test_litellm_chat_model.py` (bridge: generation, tool-call parsing, `bind_tools`, routing) + `test_coder.py` (workspace/tools path-safety, generation, `run` state, self-fix). **65 tests passing**; `mypy --strict` clean across `src/` + `tests/`.
+
+#### Changed (PR #4)
+- `orchestrator/nodes.py`: `coder` stub → real `CoderAgent` integration.
+- `tests/conftest.py`: added autouse offline `CoderAgent` stub so graph tests stay deterministic (mirrors the architect stub).
+
+#### Notes
+- **Decision #4 (2026-06-17):** the Coder uses the `BaseChatModel` bridge + `create_react_agent` tool-loop (not single-shot structured output), because it needs to write/read/revise files iteratively. This realizes the bridge deferred in Sprint 3.
 
 ---
 
