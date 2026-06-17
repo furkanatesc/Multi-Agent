@@ -24,6 +24,7 @@ from typing import Any
 from langchain_core.messages import AIMessage
 
 from src.agents.architect.agent import ArchitectAgent
+from src.agents.coder.agent import CoderAgent
 from src.orchestrator.state import AgentState
 
 # Nominal per-step stub cost so the cost accumulator is visibly non-zero.
@@ -71,16 +72,12 @@ def architect(state: AgentState) -> dict[str, Any]:
 
 
 def coder(state: AgentState) -> dict[str, Any]:
-    """Stub Coder: emits a placeholder source file and resets lint/test flags."""
-    return _step(
-        "coder",
-        "[coder] stub module generated",
-        source_code={"src/App.stub.txt": "// stub generated module"},
-        lint_passed=None,
-        tests_passed=None,
-        status="inner_loop",
-        next_agent="inner_loop_check",
-    )
+    """Coder node: generates source code via :class:`CoderAgent` (tool-loop).
+
+    Real LLM-backed agent (Sprint 4). Returns a partial state update with the
+    generated ``source_code`` map and the inner-loop routing.
+    """
+    return CoderAgent().run(state)
 
 
 def inner_loop_check(state: AgentState) -> dict[str, Any]:

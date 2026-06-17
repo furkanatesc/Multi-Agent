@@ -39,6 +39,8 @@
 - **Decision #2 (S3):** Agents are built directly on `LiteLLMClient` + structured output (NOT `create_react_agent`), to preserve Router fallback + cost tracking. `ArchitectAgent` follows this.
 - **Deferred to S4 (decision #3):** the LiteLLM ↔ LangChain `BaseChatModel` bridge + `make_handoff_tool` react-supervisor — needed once a real tool-loop exists (Coder).
 - **Conventions:** update `CHANGELOG.md` at every sprint/PR closure (entry rides inside that sprint's feature PR). Dashboard (S8) should follow the **SQLGen** space/cinematic aesthetic; React-vs-Vue still undecided.
+- **Strategic expansion (post-S4, do NOT refactor toward during S4/S5):** generalize beyond mobile via a pluggable `TargetProfile` (web/desktop/CLI/scoped-security), then add a **brownfield** mode (refactor/feature-add on existing repos) where we **fork & revise gortex** (UI + backend + integration points). Core engine is already domain-agnostic. Full plan: `docs/05_expansion_vision.md`.
+- **Decision #4 (S4):** CoderAgent uses the new LiteLLM↔LangChain **`BaseChatModel` bridge** (`src/integrations/litellm_chat_model.py`) + `create_react_agent` tool-loop (NOT structured single-shot) — chosen 2026-06-17. Bridge done & green (mypy strict + 8 tests).
 
 ---
 
