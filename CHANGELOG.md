@@ -8,8 +8,12 @@ This file is updated at every **sprint & PR closure**.
 
 ## [Unreleased]
 
-### Sprint 4 — Coder Agent & Inner Loop (Faz 4) — 🔴 highest-risk sprint (Docker self-fix)
-In progress. Two PRs: **#4 Coder Agent** (this entry), **#5 Inner Loop** (DockerRunner + Dockerfiles).
+> ⏸️ **Stopping point (2026-06-18).** Sprint 4 complete (PRs #4 + #5 merged to `develop`). Next session → **Sprint 5 — Security Agent & Test Generator (Faz 5)**. See `cache.md` for full resume context.
+
+---
+
+## [Sprint 4] — Coder Agent & Inner Loop (Faz 4) — 2026-06-18 — 🔴 highest-risk sprint (Docker self-fix)
+Complete. Two PRs merged: **#4 Coder Agent**, **#5 Inner Loop**. The Coder now generates code via a tool-loop and self-fixes it against real Docker lint/test runs. **83 tests passing**, `mypy --strict` clean (38 files).
 
 #### Added (PR #4 — Coder Agent)
 - `integrations/litellm_chat_model.py`: **`LiteLLMChatModel`** — the deferred LiteLLM ↔ LangChain `BaseChatModel` bridge (**decision #4**). Routes every `create_react_agent` model call through `LiteLLMClient`, so Router fallback + token/cost tracking stay intact. Converts LangChain messages ↔ OpenAI dicts, parses `tool_calls` (valid → `ToolCall`, malformed → `invalid_tool_calls`), and exposes `bind_tools`.

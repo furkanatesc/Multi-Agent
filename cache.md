@@ -1,6 +1,6 @@
 # 🗂️ Session Cache — Resume Point
 
-> **Stopping point:** 2026-06-17. Resume next session from **Sprint 4**.
+> **Stopping point:** 2026-06-18. Resume next session from **Sprint 5**.
 > This file is the fast-resume handoff: where we are, environment state, decisions, and the exact next steps.
 
 ---
@@ -13,14 +13,16 @@
 | S2 — Orchestration & State | PR#2 | ✅ merged | LangGraph StateGraph, reducers, PostgreSQL checkpointing, Alembic, CI |
 | S3 — Architect Agent | PR#3 | ✅ merged | `ArchitectAgent` → structured ADR (`ADRDocument`) |
 | **Milestone M1** | — | ✅ released | tag **`v0.1-alpha`** on `main` (Core Engine) |
+| S4 — Coder Agent | PR#4 | ✅ merged | `CoderAgent` (react-agent tool-loop) + `LiteLLMChatModel` bridge |
+| S4 — Inner Loop | PR#5 | ✅ merged | `DockerRunner` + `InnerLoopRunner` (lint→test→self-fix) + Dockerfiles |
 
-- **Tests:** 42 passing. **`mypy --strict`:** clean across `src/` + `tests/`.
-- **Branches:** `main` (= `v0.1-alpha`), `develop` (current working branch, = S3). No open feature branch.
+- **Tests:** 83 passing, 1 skipped (Postgres integration). **`mypy --strict`:** clean across `src/` + `tests/` (38 files).
+- **Branches:** `main` (= `v0.1-alpha`), `develop` (current working branch, = S4). No open feature branch.
 
 ---
 
 ## 🧭 Git state
-- Working branch: **`develop`** (up to date with `origin/develop`).
+- Working branch: **`develop`** (at `c7cda6b`, S4 merged, up to date with `origin/develop`).
 - `main` = `develop` at the M1 merge, tagged `v0.1-alpha` (pushed).
 - Remote: `https://github.com/furkanatesc/Multi-Agent` (public).
 - Flow: `main ← develop ← feature/sN-*`, **squash** merge, delete branch after.
@@ -37,38 +39,45 @@
 
 ## 🏛️ Key decisions (carry forward)
 - **Decision #2 (S3):** Agents are built directly on `LiteLLMClient` + structured output (NOT `create_react_agent`), to preserve Router fallback + cost tracking. `ArchitectAgent` follows this.
-- **Deferred to S4 (decision #3):** the LiteLLM ↔ LangChain `BaseChatModel` bridge + `make_handoff_tool` react-supervisor — needed once a real tool-loop exists (Coder).
+- **Decision #3 (realized in S4):** the LiteLLM ↔ LangChain `BaseChatModel` bridge — shipped as `src/integrations/litellm_chat_model.py` (PR#4). The `make_handoff_tool` react-supervisor was NOT needed (edge-based routing + encapsulated inner loop suffice).
 - **Conventions:** update `CHANGELOG.md` at every sprint/PR closure (entry rides inside that sprint's feature PR). Dashboard (S8) should follow the **SQLGen** space/cinematic aesthetic; React-vs-Vue still undecided.
 - **Strategic expansion (post-S4, do NOT refactor toward during S4/S5):** generalize beyond mobile via a pluggable `TargetProfile` (web/desktop/CLI/scoped-security), then add a **brownfield** mode (refactor/feature-add on existing repos) where we **fork & revise gortex** (UI + backend + integration points). Core engine is already domain-agnostic. Full plan: `docs/05_expansion_vision.md`.
-- **Decision #4 (S4):** CoderAgent uses the new LiteLLM↔LangChain **`BaseChatModel` bridge** (`src/integrations/litellm_chat_model.py`) + `create_react_agent` tool-loop (NOT structured single-shot) — chosen 2026-06-17. Bridge done & green (mypy strict + 8 tests).
+- **Decision #4 (S4):** CoderAgent uses the LiteLLM↔LangChain **`BaseChatModel` bridge** (`src/integrations/litellm_chat_model.py`) + `create_react_agent` tool-loop (NOT structured single-shot) — chosen 2026-06-17. Writes into an in-memory path-safe `Workspace`.
+- **Decision #5 (S4):** the inner self-fix loop is **encapsulated in `InnerLoopRunner`** (one `inner_loop_check` node runs lint→test→`self_fix`×cap), NOT via the graph `coder↔inner_loop_check` back-edge → keeps Coder error-context out of graph state. `edges.py` unchanged. Docker file injection via **`put_archive` (tar)**, not bind-mounts (Windows-safe). Images: `mobile-agent-node` / `mobile-agent-flutter`, built on first use via `DockerRunner.ensure_image`.
 
 ---
 
-## ▶️ NEXT: Sprint 4 — Coder Agent & Inner Loop (Faz 4) 🔴 highest risk
+## ▶️ NEXT: Sprint 5 — Security Agent & Test Generator (Faz 5) 🟡
 
-Working rhythm (as agreed): **file analysis → (b) solid foundation, review → (a) the rest**.
+Working rhythm (as agreed): **file analysis → (b) solid foundation, review → (a) the rest → PR**. Both agents follow **decision #2** (built on `BaseAgent` + `complete_structured`, like Architect — they're single-shot, no tool-loop needed). Bağımlılık: S4 çıktısı (Coder'ın ürettiği `source_code`).
 
-### PR#4 — `feature/s4-coder-agent`
-- `src/agents/coder/{__init__,agent,tools}.py` — `CoderAgent(BaseAgent)`: `generate_module()`, `self_fix()`; primary Claude Sonnet 4, fallback Gemini.
-- `config/prompts/coder_system.md`.
-- MODIFY `src/orchestrator/nodes.py` — `coder` stub → real `CoderAgent`; update `tests/conftest.py` stub accordingly.
-- `tests/test_coder.py`.
+### PR#6 — `feature/s5-security-agent`
+- `src/agents/security/{__init__,agent,owasp_rules,tools}.py` — `SecurityAgent(BaseAgent)`: `scan_code()`, `audit_dependencies()`, `detect_secrets()`, 0–100 güvenlik skoru. `owasp_rules.py` = OWASP Mobile Top 10 + severity mapping. tools: `run_semgrep_tool`, `run_gitleaks_tool`, `check_dependencies_tool`.
+- MODIFY `src/orchestrator/nodes.py` — `security_scan` stub → real `SecurityAgent`; add conftest stub.
+- MODIFY `src/orchestrator/edges.py` — `security_gate()` zaten doğru mantıkta (score<80→Coder, kritik→HITL); muhtemelen sadece doğrulama (S4'teki edges gibi).
+- `tests/test_security.py` (bilinen vulnerable kod örnekleri).
+- model_route: `security-model` (GPT-4o, config'de hazır).
 
-### PR#5 — `feature/s4-inner-loop`
-- `src/agents/coder/inner_loop.py` — `InnerLoopRunner` (Docker lint→test, max 3 self-fix iters).
-- `src/integrations/docker_runner.py` — `DockerRunner` (container lifecycle, logs, timeout).
-- `docker/Dockerfile.node`, `docker/Dockerfile.dart`.
-- MODIFY `src/orchestrator/edges.py` — real `should_continue_inner_loop()` (logic already present; wire to real lint/test results).
-- `tests/test_inner_loop.py` (mock Docker).
+### PR#7 — `feature/s5-test-generator`
+- `src/agents/test_generator/{__init__,agent,tools}.py` — `TestGeneratorAgent(BaseAgent)`: `generate_unit_tests()`, `generate_widget_tests()`, `generate_integration_tests()`. tools: `analyze_code_structure_tool`, `run_coverage_tool`.
+- `config/prompts/test_generator_system.md` — coverage hedefi ≥70%, framework kuralları.
+- MODIFY `src/orchestrator/nodes.py` — `test_generator` stub → real; add conftest stub.
+- `tests/test_test_generator.py`.
+- model_route: `test-generator-model` (Claude Sonnet, config'de hazır).
 
-### ⚠️ Heads-up for S4
-- This sprint introduces the **`BaseChatModel` bridge** so Coder can run a real tool-loop.
-- Docker cross-platform issues are the main risk (plan §7, 3-day buffer).
-- `DockerRunner` will need the Docker SDK (`docker` is already in `pyproject.toml`).
+### ⚠️ Heads-up for S5
+- `run_coverage_tool` muhtemelen **`DockerRunner`'ı yeniden kullanır** (S4'te kuruldu) — test çalıştırıp coverage almak için. Profil/komut mantığı `inner_loop.py`'dekiyle paralel.
+- semgrep/gitleaks: Docker image'ları mı yoksa pip/binary mi? Karar S5 başında verilecek (öneri: DockerRunner üzerinden image).
+- Her iki edge (`security_gate`) zaten S2'de doğru yazıldı — S4'te `should_continue_inner_loop` gibi değişmeyebilir.
 
 ---
 
 ## 🔁 How to resume next session
-1. `git checkout develop && git pull` (ensure latest).
-2. Confirm Docker services up: `docker ps` (start with `docker-compose up -d` if needed).
-3. Say "continue" → I produce the **Sprint 4 file analysis**, then we do (b) foundation → review → (a) rest, open PR#4.
+1. `git checkout develop && git pull` (ensure latest, = S4).
+2. Confirm Docker daemon up: `docker ps` (start Docker Desktop; `docker-compose up -d` for postgres/redis if running checkpoint tests).
+3. Say "continue" → I produce the **Sprint 5 file analysis**, then (b) foundation → review → (a) rest, open PR#6.
+
+---
+
+## 🚀 Strategic direction (post-S5+, NOT now)
+Mobil'in ötesine genişleme + brownfield modu + gortex fork — tam plan `docs/05_expansion_vision.md` ve memory `strategic-direction.md`. **S5'te bu yönde refactor YOK.**
