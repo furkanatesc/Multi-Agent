@@ -23,8 +23,20 @@ In progress. Two PRs: **#4 Coder Agent** (this entry), **#5 Inner Loop** (Docker
 - `orchestrator/nodes.py`: `coder` stub → real `CoderAgent` integration.
 - `tests/conftest.py`: added autouse offline `CoderAgent` stub so graph tests stay deterministic (mirrors the architect stub).
 
+#### Added (PR #5 — Inner Loop)
+- `integrations/docker_runner.py`: **`DockerRunner`** — sandboxed lint/test in disposable containers. Files injected via in-memory **`put_archive` tar** (not bind-mounts → Windows-safe); commands wrapped in coreutils `timeout`; container always removed. `ensure_image()` builds a tagged image from its Dockerfile on first use. Result models `CommandResult` / `RunResult`.
+- `agents/coder/inner_loop.py`: **`InnerLoopRunner`** — encapsulates the lint→test→`self_fix` cycle (bounded by `max_inner_loop_iterations`), returning the fixed files + final verdicts + cost (`InnerLoopResult`). Platform→toolchain mapping (`_PROFILES`: Node / Flutter).
+- `docker/Dockerfile.node` (node:20-slim) + `docker/Dockerfile.dart` (Cirrus Flutter): generic runtime images; project files + commands arrive at runtime.
+- Tests: `test_docker_runner.py` (mocked client: lifecycle, tar upload, timeout wrap, install short-circuit, cleanup-on-error) + `test_inner_loop.py` (mocked Docker+Coder: pass-first-try, fix-then-pass, iteration cap, profile selection).
+
+#### Changed (PR #5)
+- `orchestrator/nodes.py`: `inner_loop_check` stub → real `InnerLoopRunner` integration.
+- `tests/conftest.py`: added autouse offline `InnerLoopRunner` stub for graph tests.
+- `orchestrator/edges.py`: **unchanged** — `should_continue_inner_loop` logic was already correct; the inner loop being encapsulated in the runner means the graph back-edge stays dormant (cap reached → proceed).
+
 #### Notes
 - **Decision #4 (2026-06-17):** the Coder uses the `BaseChatModel` bridge + `create_react_agent` tool-loop (not single-shot structured output), because it needs to write/read/revise files iteratively. This realizes the bridge deferred in Sprint 3.
+- **Decision #5 (2026-06-18):** the inner self-fix loop is encapsulated **inside `InnerLoopRunner`** (one `inner_loop_check` node call runs the whole lint→test→fix cycle), not realized via the graph's `coder↔inner_loop_check` back-edge — keeps the Coder's error-context out of graph state. Docker file injection uses `put_archive` (tar) to avoid Windows bind-mount issues.
 
 ---
 

@@ -25,6 +25,7 @@ from langchain_core.messages import AIMessage
 
 from src.agents.architect.agent import ArchitectAgent
 from src.agents.coder.agent import CoderAgent
+from src.agents.coder.inner_loop import InnerLoopRunner
 from src.orchestrator.state import AgentState
 
 # Nominal per-step stub cost so the cost accumulator is visibly non-zero.
@@ -81,19 +82,35 @@ def coder(state: AgentState) -> dict[str, Any]:
 
 
 def inner_loop_check(state: AgentState) -> dict[str, Any]:
-    """Stub inner loop: simulates a lint/test run that passes on this pass.
+    """Inner-loop node: runs lint/test in Docker and self-fixes (Sprint 4).
 
-    Increments ``inner_loop_count`` (overwrite channel) so the iteration cap in
-    :func:`edges.should_continue_inner_loop` is respected on real failures.
+    Delegates the whole lint→test→self-fix cycle to :class:`InnerLoopRunner`
+    (bounded by the guardrail iteration cap), then writes the final verdicts and
+    (possibly fixed) source back to state. ``inner_loop_count`` is set to the
+    number of self-fix iterations spent so the downstream edge proceeds once the
+    cap is reached.
     """
-    iteration = int(state.get("inner_loop_count", 0)) + 1
-    return _step(
-        "inner_loop",
-        f"[inner_loop] lint+test run #{iteration}: passed",
-        inner_loop_count=iteration,
-        lint_passed=True,
-        tests_passed=True,
+    result = InnerLoopRunner().run(
+        state.get("source_code") or {}, state.get("platform")
     )
+    verdict = "passed" if result.passed else "failed"
+    return {
+        "messages": [
+            AIMessage(
+                content=(
+                    f"[inner_loop] {verdict} after {result.iterations} self-fix "
+                    f"iter(s) (lint={result.lint_passed}, tests={result.tests_passed})"
+                ),
+                name="inner_loop",
+            )
+        ],
+        "source_code": result.files,
+        "lint_passed": result.lint_passed,
+        "tests_passed": result.tests_passed,
+        "inner_loop_count": result.iterations,
+        "total_cost_usd": result.cost,
+        "iteration_count": 1,
+    }
 
 
 def security_scan(state: AgentState) -> dict[str, Any]:
