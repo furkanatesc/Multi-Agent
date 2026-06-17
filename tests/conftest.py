@@ -73,3 +73,36 @@ def _stub_coder_agent(monkeypatch: pytest.MonkeyPatch) -> None:
             }
 
     monkeypatch.setattr("src.orchestrator.nodes.CoderAgent", _FakeCoder)
+
+
+@pytest.fixture(autouse=True)
+def _stub_inner_loop_runner(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replace the graph's InnerLoopRunner with a deterministic offline stub.
+
+    Reports a passing lint/test run with no self-fix iterations, preserving the
+    incoming source map. A nominal 0.01 cost keeps the graph cost-accumulator
+    assertions consistent with the other stub nodes. The real, Docker-backed
+    ``InnerLoopRunner`` is exercised directly (with mocks) in
+    ``tests/test_inner_loop.py``.
+    """
+
+    class _FakeResult:
+        def __init__(self, files: dict[str, str]) -> None:
+            self.files = files
+            self.lint_passed = True
+            self.tests_passed = True
+            self.iterations = 0
+            self.cost = 0.01
+
+        @property
+        def passed(self) -> bool:
+            return self.lint_passed and self.tests_passed
+
+    class _FakeInnerLoop:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            ...
+
+        def run(self, files: dict[str, str], platform: Any) -> _FakeResult:
+            return _FakeResult(dict(files or {}))
+
+    monkeypatch.setattr("src.orchestrator.nodes.InnerLoopRunner", _FakeInnerLoop)

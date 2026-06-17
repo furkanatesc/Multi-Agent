@@ -1,0 +1,19 @@
+# Runtime image for linting/testing generated Node / React Native projects.
+#
+# The generated project carries its own package.json; this image only provides
+# the Node toolchain. The inner loop streams the project files in at runtime and
+# runs `npm install` + lint + test, so nothing project-specific is baked here.
+#
+# Debian-slim ships coreutils `timeout`, which DockerRunner uses to bound each
+# lint/test command.
+FROM node:20-slim
+
+WORKDIR /app
+
+# Non-interactive, CI-friendly npm behavior.
+ENV CI=true \
+    npm_config_fund=false \
+    npm_config_audit=false
+
+# Image is generic; the project + commands arrive at runtime.
+CMD ["sleep", "infinity"]
