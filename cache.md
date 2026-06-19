@@ -1,6 +1,6 @@
 # 🗂️ Session Cache — Resume Point
 
-> **Stopping point:** 2026-06-18. Resume next session from **Sprint 5**.
+> **Stopping point:** 2026-06-20. **Sprint 5 complete.** Resume next session from **Sprint 6 (Reviewer & GitHub)**.
 > This file is the fast-resume handoff: where we are, environment state, decisions, and the exact next steps.
 
 ---
@@ -15,70 +15,73 @@
 | **Milestone M1** | — | ✅ released | tag **`v0.1-alpha`** on `main` (Core Engine) |
 | S4 — Coder Agent | PR#4 | ✅ merged | `CoderAgent` (react-agent tool-loop) + `LiteLLMChatModel` bridge |
 | S4 — Inner Loop | PR#5 | ✅ merged | `DockerRunner` + `InnerLoopRunner` (lint→test→self-fix) + Dockerfiles |
+| Tooling — superpowers | PR#6 | ✅ merged | Vendored 14 superpowers skills → `.claude/skills/`; gortex plan `docs/06` |
+| S5 — Security Agent | PR#7 | ✅ merged | `SecurityAgent` (OWASP Mobile Top 10, deterministic score, semgrep/gitleaks) |
+| S5 — Test Generator | PR#8 | ✅ merged | `TestGeneratorAgent` (unit/widget/integration, ≥70% coverage via DockerRunner) |
 
-- **Tests:** 83 passing, 1 skipped (Postgres integration). **`mypy --strict`:** clean across `src/` + `tests/` (38 files).
-- **Branches:** `main` (= `v0.1-alpha`), `develop` (current working branch, = S4). No open feature branch.
+- **Tests:** 129 passing, 1 skipped (Postgres integration). **`mypy --strict`:** clean across `src/` + `tests/` (49 files).
+- **Branches:** `main` (= `v0.1-alpha`), `develop` (current, = S5 at `fbc5ecb`). No open feature branch.
 
 ---
 
 ## 🧭 Git state
-- Working branch: **`develop`** (at `c7cda6b`, S4 merged, up to date with `origin/develop`).
-- `main` = `develop` at the M1 merge, tagged `v0.1-alpha` (pushed).
+- Working branch: **`develop`** (at `fbc5ecb`, S5 merged, up to date with `origin/develop`).
+- `main` = `develop` at the M1 merge, tagged `v0.1-alpha` (pushed). **Note:** M2 (`v0.5-beta`) is due at S6 end per the plan — `develop → main` merge + tag.
 - Remote: `https://github.com/furkanatesc/Multi-Agent` (public).
 - Flow: `main ← develop ← feature/sN-*`, **squash** merge, delete branch after.
-- `gh` CLI installed at `C:\Program Files\GitHub CLI\gh.exe`, authenticated as `furkanatesc` (token has `workflow` scope; **lacks `Administration`** → branch protection must be set via web UI, currently OFF by user choice).
+- **PR numbering drift:** PR#6 was the superpowers tooling PR, so sprint PRs shifted +1 vs the sprint plan. S6 Reviewer = **PR#9** (plan calls it #8).
+- `gh` CLI at `C:\Program Files\GitHub CLI\gh.exe`, authed as `furkanatesc` (token has `workflow`; **lacks `Administration`** → branch protection via web UI, currently OFF).
 
 ## 🖥️ Environment state (already set up)
 - venv: `./venv/Scripts/python.exe` — deps installed incl. `sqlalchemy`, `alembic`, `langgraph`, `litellm`.
-- Docker: `multi_agent_postgres` + `multi_agent_redis` running & healthy (`docker-compose up -d`).
-- DB: migrated — `alembic upgrade head` applied (`001_initial`: projects, agent_runs, hitl_approvals, cost_logs).
-- CI: `.github/workflows/ci.yml` runs `mypy --strict` + `alembic upgrade head` + `pytest` on a Postgres service for every PR/push to `develop`/`main`. Green.
-- `.env` present (ensure real API keys before any live LLM run).
+- Docker: postgres/redis via `docker-compose up -d`. **⚠️ Docker daemon was DOWN at last check** — start Docker Desktop before any live run (inner-loop hard-requires it; security/test-gen degrade gracefully).
+- DB: migrated — `alembic upgrade head` (`001_initial`: projects, agent_runs, hitl_approvals, cost_logs).
+- CI: `.github/workflows/ci.yml` runs `mypy --strict` + `alembic upgrade head` + `pytest` on Postgres for every PR/push. Green.
+- `.env` present with 4 non-empty `*_API_KEY` lines (verify before any live LLM run).
 
 ---
 
 ## 🏛️ Key decisions (carry forward)
-- **Decision #2 (S3):** Agents are built directly on `LiteLLMClient` + structured output (NOT `create_react_agent`), to preserve Router fallback + cost tracking. `ArchitectAgent` follows this.
-- **Decision #3 (realized in S4):** the LiteLLM ↔ LangChain `BaseChatModel` bridge — shipped as `src/integrations/litellm_chat_model.py` (PR#4). The `make_handoff_tool` react-supervisor was NOT needed (edge-based routing + encapsulated inner loop suffice).
-- **Conventions:** update `CHANGELOG.md` at every sprint/PR closure (entry rides inside that sprint's feature PR). Dashboard (S8) should follow the **SQLGen** space/cinematic aesthetic; React-vs-Vue still undecided.
-- **Strategic expansion (post-S4, do NOT refactor toward during S4/S5):** generalize beyond mobile via a pluggable `TargetProfile` (web/desktop/CLI/scoped-security), then add a **brownfield** mode (refactor/feature-add on existing repos) where we **fork & revise gortex** (UI + backend + integration points). Core engine is already domain-agnostic. Full plan: `docs/05_expansion_vision.md`.
-- **Decision #4 (S4):** CoderAgent uses the LiteLLM↔LangChain **`BaseChatModel` bridge** (`src/integrations/litellm_chat_model.py`) + `create_react_agent` tool-loop (NOT structured single-shot) — chosen 2026-06-17. Writes into an in-memory path-safe `Workspace`.
-- **Decision #5 (S4):** the inner self-fix loop is **encapsulated in `InnerLoopRunner`** (one `inner_loop_check` node runs lint→test→`self_fix`×cap), NOT via the graph `coder↔inner_loop_check` back-edge → keeps Coder error-context out of graph state. `edges.py` unchanged. Docker file injection via **`put_archive` (tar)**, not bind-mounts (Windows-safe). Images: `mobile-agent-node` / `mobile-agent-flutter`, built on first use via `DockerRunner.ensure_image`.
+- **Decision #2 (S3):** Agents built directly on `LiteLLMClient` + structured output (NOT `create_react_agent`), preserving Router fallback + cost tracking. Architect / Security / TestGenerator all follow this (single-shot `complete_structured`).
+- **Decision #3 (S4):** LiteLLM ↔ LangChain `BaseChatModel` bridge — `src/integrations/litellm_chat_model.py` (PR#4). `make_handoff_tool` react-supervisor NOT needed.
+- **Decision #4 (S4):** CoderAgent uses the bridge + `create_react_agent` tool-loop (NOT structured) — writes into an in-memory path-safe `Workspace`.
+- **Decision #5 (S4):** inner self-fix loop **encapsulated in `InnerLoopRunner`** (one `inner_loop_check` node), NOT a graph back-edge. Docker file injection via `put_archive` (tar), not bind-mounts. Images `mobile-agent-node` / `mobile-agent-flutter` built on first use via `DockerRunner.ensure_image`.
+- **Decision #6 (S5):** security **scoring is deterministic** (`agents/security/owasp_rules.py`), NOT LLM-emitted — `compute_score` (critical −40 / high −25 / medium −10 / low −3) + `has_critical` (only `critical` → HITL). Keeps `security_gate` reproducible. Two-layer schema: `SecurityScan` (LLM) → `SecurityReport` (computed). Same two-layer idea reused conceptually in TestGenerator.
+- **Decision #7 (S5):** semgrep/gitleaks run **via `DockerRunner.run_command`** (new general single-command exec) in `docker/Dockerfile.security`; coverage reuses the inner-loop Node/Flutter images. All Docker-backed tools **degrade gracefully** when the daemon is down (LLM-only review / coverage skipped). `edges.security_gate` & `state.py` unchanged (already correct — confirmed).
+- **Conventions:** update `CHANGELOG.md` at every sprint/PR closure. Dashboard (S8) follows the **SQLGen** space/cinematic aesthetic; sprint plan PR#11 actually specifies **React 19 + Vite + Zustand** (React chosen — memory `dashboard-design-direction` says "React-vs-Vue undecided" but the plan resolves it to React).
+- **Strategic expansion (post-S5, NOT now):** pluggable `TargetProfile` (web/desktop/CLI/scoped-security), then **brownfield** mode forking gortex. Plans: `docs/05_expansion_vision.md` + `docs/06_gortex_vendoring_plan.md`. **No refactor toward this yet.**
+- **superpowers:** vendored into `.claude/skills/` (PR#6). User chose **vendored-only** → the marketplace plugin should be removed (`/plugin uninstall superpowers`); keep `frontend-design` + `code-review` plugins.
 
 ---
 
-## ▶️ NEXT: Sprint 5 — Security Agent & Test Generator (Faz 5) 🟡
+## ▶️ NEXT: Sprint 6 — Reviewer Agent & GitHub Integration (Faz 6) 🟢
 
-Working rhythm (as agreed): **file analysis → (b) solid foundation, review → (a) the rest → PR**. Both agents follow **decision #2** (built on `BaseAgent` + `complete_structured`, like Architect — they're single-shot, no tool-loop needed). Bağımlılık: S4 çıktısı (Coder'ın ürettiği `source_code`).
+Working rhythm (as agreed): **file analysis → (b) solid foundation, review → (a) the rest → PR**. ReviewerAgent follows **decision #2** (single-shot structured, like Architect/Security). Bağımlılık: S5 çıktıları (security report + generated tests + source_code).
 
-### PR#7 — `feature/s5-security-agent`  <!-- PR#6 was consumed by the superpowers-vendoring tooling PR (merged 2026-06-19) -->
+### PR#9 — `feature/s6-reviewer-github`
+- `src/agents/reviewer/{__init__,agent,tools}.py` — `ReviewerAgent(BaseAgent)`: `review_code()`, `analyze_ci_logs()`, `create_pr_review()`, PASS/FAIL decision. Likely a `ReviewReport` structured schema (verdict + inline comments + rationale).
+- `src/integrations/github_client.py` — `GitHubClient`: `create_branch()`, `commit_files()`, `create_pull_request()`, `get_ci_logs()`, `submit_review()`, `auto_merge()` (PyGithub).
+- `config/prompts/reviewer_system.md` — SOLID, Clean Code, review format.
+- MODIFY `src/orchestrator/nodes.py` — `reviewer` stub → real; `deployer` may stay stub until S7. Add conftest stub.
+- VERIFY `src/orchestrator/edges.py` — `review_decision()` already correct (PASS→deploy, FAIL+cap→escalate, FAIL→coder). Outer-loop cap (`should_escalate`) already wired.
+- `tests/test_reviewer.py` + `tests/test_github_client.py` (mock PyGithub).
+- model_route: `reviewer-model` (config'de hazır).
 
-- `src/agents/security/{__init__,agent,owasp_rules,tools}.py` — `SecurityAgent(BaseAgent)`: `scan_code()`, `audit_dependencies()`, `detect_secrets()`, 0–100 güvenlik skoru. `owasp_rules.py` = OWASP Mobile Top 10 + severity mapping. tools: `run_semgrep_tool`, `run_gitleaks_tool`, `check_dependencies_tool`.
-- MODIFY `src/orchestrator/nodes.py` — `security_scan` stub → real `SecurityAgent`; add conftest stub.
-- MODIFY `src/orchestrator/edges.py` — `security_gate()` zaten doğru mantıkta (score<80→Coder, kritik→HITL); muhtemelen sadece doğrulama (S4'teki edges gibi).
-- `tests/test_security.py` (bilinen vulnerable kod örnekleri).
-- model_route: `security-model` (GPT-4o, config'de hazır).
-
-### PR#8 — `feature/s5-test-generator`
-- `src/agents/test_generator/{__init__,agent,tools}.py` — `TestGeneratorAgent(BaseAgent)`: `generate_unit_tests()`, `generate_widget_tests()`, `generate_integration_tests()`. tools: `analyze_code_structure_tool`, `run_coverage_tool`.
-- `config/prompts/test_generator_system.md` — coverage hedefi ≥70%, framework kuralları.
-- MODIFY `src/orchestrator/nodes.py` — `test_generator` stub → real; add conftest stub.
-- `tests/test_test_generator.py`.
-- model_route: `test-generator-model` (Claude Sonnet, config'de hazır).
-
-### ⚠️ Heads-up for S5
-- `run_coverage_tool` muhtemelen **`DockerRunner`'ı yeniden kullanır** (S4'te kuruldu) — test çalıştırıp coverage almak için. Profil/komut mantığı `inner_loop.py`'dekiyle paralel.
-- semgrep/gitleaks: Docker image'ları mı yoksa pip/binary mi? Karar S5 başında verilecek (öneri: DockerRunner üzerinden image).
-- Her iki edge (`security_gate`) zaten S2'de doğru yazıldı — S4'te `should_continue_inner_loop` gibi değişmeyebilir.
+### ⚠️ Heads-up for S6
+- GitHub API needs a real `GITHUB_TOKEN` in `.env` (token already has `workflow` scope; PR/review need `repo`). Tests mock PyGithub — no live calls.
+- The `reviewer` node increments `outer_loop_count`; the FAIL→coder back-edge + cap=5 (`should_escalate`) is the **outer loop**. Mirror how S4 handled the inner loop.
+- Consider whether auto-merge belongs to Reviewer (S6) or HITL (S7) — plan lists auto-merge under S6 but it's a scope-cut candidate.
 
 ---
 
 ## 🔁 How to resume next session
-1. `git checkout develop && git pull` (ensure latest, = S4).
-2. Confirm Docker daemon up: `docker ps` (start Docker Desktop; `docker-compose up -d` for postgres/redis if running checkpoint tests).
-3. Say "continue" → I produce the **Sprint 5 file analysis**, then (b) foundation → review → (a) rest, open PR#6.
+1. `git checkout develop && git pull` (ensure latest, = S5 at `fbc5ecb`).
+2. Start Docker Desktop; `docker ps` to confirm. `docker-compose up -d` for postgres/redis if running checkpoint/live tests.
+3. Say "continue" → I produce the **Sprint 6 file analysis**, then (b) foundation → review → (a) rest, open **PR#9**.
+
+> 💡 **Optional (path A, not yet built):** a minimal runner (`python -m src` / `scripts/run.py`) wrapping `build_graph()` so the pipeline can be invoked live with a prompt. Useful to *try* the system before the S7 API. Needs Docker + API keys. Reviewer/deployer/HITL are still stubs, so a live run produces code + tests but auto-PASSes review and fake-deploys.
 
 ---
 
 ## 🚀 Strategic direction (post-S5+, NOT now)
-Mobil'in ötesine genişleme + brownfield modu + gortex fork — tam plan `docs/05_expansion_vision.md` ve memory `strategic-direction.md`. **S5'te bu yönde refactor YOK.**
+Mobil'in ötesine genişleme + brownfield modu + gortex fork — `docs/05_expansion_vision.md`, `docs/06_gortex_vendoring_plan.md`, memory `strategic-direction.md`. **No refactor toward this during the core sprints.**
