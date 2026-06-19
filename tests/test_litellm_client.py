@@ -56,3 +56,25 @@ def test_litellm_client_fallback_failure(mock_router: MagicMock) -> None:
     client = LiteLLMClient()
     with pytest.raises(Exception, match="API Connection Error"):
         client.completion(model="coder-model", messages=[])
+
+
+def test_every_config_model_has_provider_prefix() -> None:
+    """Regression guard: each model_list entry must name a provider.
+
+    LiteLLM's Router infers the provider from a ``provider/model`` prefix; an
+    entry like ``claude-3-5-sonnet-20241022`` (no prefix) raises
+    "LLM Provider NOT provided" at Router construction — which the mocked tests
+    above never exercise. This validates the real config file instead, so a
+    missing prefix fails CI rather than only a live run.
+    """
+    from src.core.config import settings
+
+    model_list = settings.litellm_config.get("model_list", [])
+    assert model_list, "litellm_config.yaml has no model_list"
+    for entry in model_list:
+        name = entry.get("model_name")
+        model = entry.get("litellm_params", {}).get("model", "")
+        assert "/" in model, (
+            f"model_list entry {name!r} has model {model!r} without a "
+            f"'provider/' prefix — LiteLLM Router init will fail."
+        )
