@@ -14,6 +14,17 @@ This file is updated at every **sprint & PR closure**.
 - **Vendored [superpowers](https://github.com/obra/superpowers) agent skills** (MIT, commit `896224c`) into `.claude/skills/` — 14 dev-workflow skills (TDD, systematic-debugging, brainstorming, writing/executing-plans, subagent-driven-development, code-review flows, git-worktrees, verification-before-completion). Auto-discovered by Claude Code; not a plugin install. Origin/license/update notes in `.claude/skills/VENDORED.md`; session-start hooks copied to `.claude/superpowers-hooks/` (not wired into settings — optional).
 - `docs/06_gortex_vendoring_plan.md`: integration/vendor **plan** for [gortex](https://github.com/zzet/gortex) (Apache-2.0). Source NOT moved in yet — deferred to brownfield **Milestone B** (post-S5) per `docs/05_expansion_vision.md`; documents subtree-vs-fork options and the Python↔gortex MCP/HTTP bridge.
 
+#### Added (Sprint 5 — PR #7 — Security Agent, 2026-06-20)
+- `agents/security/owasp_rules.py`: OWASP Mobile Top 10 (2024) catalog + **deterministic scoring** — `compute_score()` (severity penalties critical −40 / high −25 / medium −10 / low −3 / info 0, clamped 0–100) and `has_critical()` (only `critical` → HITL gate). Score math lives here, not in the prompt, so the `security_gate` decision is reproducible. A single HIGH finding lands at 75 (below the 80 gate) → forces a Coder fix.
+- `agents/security/schemas.py`: two-layer Pydantic contract — `SecurityScan` (LLM-facing: summary + `SecurityFinding[]`) vs. `SecurityReport` (final: `score`/`has_critical` computed from findings, not LLM-emitted).
+- `agents/security/tools.py`: `run_semgrep_tool` / `run_gitleaks_tool` (via `DockerRunner`, graceful degrade when Docker is down) + `check_dependencies_tool` (Docker-free OWASP M2 manifest audit for unpinned/risky version specs).
+- `agents/security/agent.py`: **`SecurityAgent(BaseAgent)`** — `scan_code()` / `audit_dependencies()` / `detect_secrets()` + `run()`. Single-shot structured (decision #2, like Architect): gather scanner evidence → `complete_structured(SecurityScan)` → compute `SecurityReport`. Writes `security_score` + `security_critical` to state. Route `security-model` (GPT-4o).
+- `config/prompts/security_system.md`: OWASP checklist, severity guidance, JSON-only output rule.
+- `docker/Dockerfile.security`: scanner image (semgrep + gitleaks) for `DockerRunner`.
+- `integrations/docker_runner.py`: added **`run_command()`** — general single-command exec (counterpart to `run_checks`) reused by the security scanners.
+- `orchestrator/nodes.py`: `security_scan` stub → real `SecurityAgent().run()`. `tests/conftest.py`: added autouse offline `SecurityAgent` stub. `orchestrator/edges.py` `security_gate()` unchanged (already correct: critical→HITL, score<80→fix, else proceed).
+- Tests: `test_security.py` (scoring, schemas, dependency audit, agent with mock LLM + fake Docker, graceful-degrade path) + `run_command` cases in `test_docker_runner.py`. **112 passing**, 1 skipped (Postgres); `mypy --strict` clean (44 files).
+
 ---
 
 ## [Sprint 4] — Coder Agent & Inner Loop (Faz 4) — 2026-06-18 — 🔴 highest-risk sprint (Docker self-fix)

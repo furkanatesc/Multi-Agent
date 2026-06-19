@@ -106,3 +106,33 @@ def _stub_inner_loop_runner(monkeypatch: pytest.MonkeyPatch) -> None:
             return _FakeResult(dict(files or {}))
 
     monkeypatch.setattr("src.orchestrator.nodes.InnerLoopRunner", _FakeInnerLoop)
+
+
+@pytest.fixture(autouse=True)
+def _stub_security_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replace the graph's SecurityAgent with a deterministic offline stub.
+
+    Emits a passing score (90) with no critical findings, mirroring a single
+    node's contribution (one message, +1 iteration, +0.01 cost) so the graph's
+    accumulator and gate assertions stay deterministic. The real, LLM-backed
+    ``SecurityAgent`` is exercised directly (with a mock client) in
+    ``tests/test_security.py``; this only patches the symbol the node uses.
+    """
+
+    class _FakeSecurity:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            ...
+
+        def run(self, state: AgentState) -> dict[str, Any]:
+            return {
+                "messages": [
+                    AIMessage(content="[security] stub scan: score=90", name="security")
+                ],
+                "security_score": 90,
+                "security_critical": False,
+                "total_cost_usd": 0.01,
+                "iteration_count": 1,
+                "status": "security_scan",
+            }
+
+    monkeypatch.setattr("src.orchestrator.nodes.SecurityAgent", _FakeSecurity)

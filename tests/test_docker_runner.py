@@ -172,3 +172,58 @@ def test_create_failure_raises_docker_error() -> None:
 
     with pytest.raises(DockerError):
         runner.run_checks({}, image="missing", lint_cmd="lint", test_cmd="test")
+
+
+# --------------------------------------------------------------------------- #
+# run_command (general single-command exec — used by the Security agent)
+# --------------------------------------------------------------------------- #
+
+
+def test_run_command_returns_result_and_cleans_up() -> None:
+    container = _FakeContainer({"semgrep": (0, b"no findings")})
+    runner = _runner_with(container)
+
+    result = runner.run_command(
+        {"src/a.js": "x"}, image="sec-img", command="semgrep --json ."
+    )
+
+    assert isinstance(result, CommandResult)
+    assert result.passed is True
+    assert "no findings" in result.output
+    assert container.removed is True
+    assert container.uploaded is not None
+
+
+def test_run_command_wraps_timeout() -> None:
+    container = _FakeContainer({"gitleaks": (1, b"leak found")})
+    runner = _runner_with(container, timeout=20)
+
+    result = runner.run_command({}, image="img", command="gitleaks detect")
+
+    assert result.passed is False  # non-zero exit surfaced
+    assert any(c.startswith("timeout 20 ") for c in container.exec_calls)
+
+
+def test_run_command_install_short_circuits() -> None:
+    container = _FakeContainer(
+        {"pip install": (1, b"pip ERR"), "semgrep": (0, b"")}
+    )
+    runner = _runner_with(container)
+
+    result = runner.run_command(
+        {}, image="img", command="semgrep .", install_cmd="pip install semgrep"
+    )
+
+    assert result.passed is False
+    # The scanner never ran — only the failed install command was executed.
+    assert container.exec_calls == ["timeout 30 pip install semgrep"]
+
+
+def test_run_command_removes_container_on_error() -> None:
+    container = _FakeContainer({})
+    container.exec_run = MagicMock(side_effect=RuntimeError("boom"))  # type: ignore[method-assign]
+    runner = _runner_with(container)
+
+    with pytest.raises(RuntimeError):
+        runner.run_command({}, image="img", command="semgrep .")
+    assert container.removed is True
