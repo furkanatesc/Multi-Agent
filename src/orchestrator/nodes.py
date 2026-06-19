@@ -26,6 +26,7 @@ from langchain_core.messages import AIMessage
 from src.agents.architect.agent import ArchitectAgent
 from src.agents.coder.agent import CoderAgent
 from src.agents.coder.inner_loop import InnerLoopRunner
+from src.agents.security.agent import SecurityAgent
 from src.orchestrator.state import AgentState
 
 # Nominal per-step stub cost so the cost accumulator is visibly non-zero.
@@ -114,14 +115,13 @@ def inner_loop_check(state: AgentState) -> dict[str, Any]:
 
 
 def security_scan(state: AgentState) -> dict[str, Any]:
-    """Stub Security agent: emits a passing security score, no critical findings."""
-    return _step(
-        "security",
-        "[security] stub scan: score=90, no critical findings",
-        security_score=90,
-        security_critical=False,
-        status="security_scan",
-    )
+    """Security node: scans the generated code via :class:`SecurityAgent` (S5).
+
+    Real LLM-backed agent. Returns a partial state update with the computed
+    ``security_score`` and ``security_critical`` flag that the ``security_gate``
+    edge routes on (proceed / fix / block_hitl).
+    """
+    return SecurityAgent().run(state)
 
 
 def hitl_gate(state: AgentState) -> dict[str, Any]:

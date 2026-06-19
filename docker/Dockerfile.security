@@ -1,0 +1,27 @@
+# Runtime image for static security scanning of generated projects.
+#
+# Bundles the two scanners the Security agent shells out to via DockerRunner:
+#   * semgrep  — SAST / pattern-based code scanning (OWASP rule packs)
+#   * gitleaks — secret detection
+# The generated project's files are streamed in at runtime (put_archive); nothing
+# project-specific is baked here. Debian-slim ships coreutils `timeout`, which
+# DockerRunner uses to bound each scan command.
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# semgrep from pip; gitleaks as a static binary from the official release.
+ARG GITLEAKS_VERSION=8.18.4
+RUN pip install --no-cache-dir semgrep \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+        | tar -xz -C /usr/local/bin gitleaks \
+    && apt-get purge -y curl \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV SEMGREP_SEND_METRICS=off
+
+# Image is generic; the project + scan commands arrive at runtime.
+CMD ["sleep", "infinity"]

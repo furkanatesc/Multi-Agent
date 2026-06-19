@@ -184,6 +184,58 @@ class DockerRunner:
         finally:
             self._cleanup(container)
 
+    def run_command(
+        self,
+        files: dict[str, str],
+        image: str,
+        command: str,
+        install_cmd: Optional[str] = None,
+    ) -> CommandResult:
+        """Materialize ``files`` and run a single command, returning its result.
+
+        A general-purpose counterpart to :meth:`run_checks` for tools that are
+        not lint/test shaped — e.g. a security scanner (``semgrep`` / ``gitleaks``)
+        whose single combined output we capture and hand to the Security agent.
+        Reuses the same container lifecycle, tar upload, timeout wrapping, and
+        guaranteed cleanup.
+
+        Args:
+            files: ``{relative_path: content}`` to write into the workspace.
+            image: Docker image to run the command in.
+            command: Shell command to execute (timeout-wrapped like the checks).
+            install_cmd: Optional setup command run first; its failure
+                short-circuits and is returned as the result.
+
+        Returns:
+            The :class:`CommandResult` for ``command`` (or the failed install).
+
+        Raises:
+            DockerError: If the container cannot be created/started.
+        """
+        container = self._create_container(image)
+        try:
+            container.start()
+            self._upload(container, files)
+
+            if install_cmd:
+                install = self._exec(container, install_cmd)
+                if not install.passed:
+                    logger.warning(
+                        "run_command install step failed",
+                        exit_code=install.exit_code,
+                    )
+                    return install
+
+            result = self._exec(container, command)
+            logger.info(
+                "Docker command complete",
+                image=image,
+                exit_code=result.exit_code,
+            )
+            return result
+        finally:
+            self._cleanup(container)
+
     # --- internals -------------------------------------------------------- #
 
     def _create_container(self, image: str) -> Any:
