@@ -51,14 +51,15 @@
 
 Working rhythm (as agreed): **file analysis → (b) solid foundation, review → (a) the rest → PR**. Both agents follow **decision #2** (built on `BaseAgent` + `complete_structured`, like Architect — they're single-shot, no tool-loop needed). Bağımlılık: S4 çıktısı (Coder'ın ürettiği `source_code`).
 
-### PR#6 — `feature/s5-security-agent`
+### PR#7 — `feature/s5-security-agent`  <!-- PR#6 was consumed by the superpowers-vendoring tooling PR (merged 2026-06-19) -->
+
 - `src/agents/security/{__init__,agent,owasp_rules,tools}.py` — `SecurityAgent(BaseAgent)`: `scan_code()`, `audit_dependencies()`, `detect_secrets()`, 0–100 güvenlik skoru. `owasp_rules.py` = OWASP Mobile Top 10 + severity mapping. tools: `run_semgrep_tool`, `run_gitleaks_tool`, `check_dependencies_tool`.
 - MODIFY `src/orchestrator/nodes.py` — `security_scan` stub → real `SecurityAgent`; add conftest stub.
 - MODIFY `src/orchestrator/edges.py` — `security_gate()` zaten doğru mantıkta (score<80→Coder, kritik→HITL); muhtemelen sadece doğrulama (S4'teki edges gibi).
 - `tests/test_security.py` (bilinen vulnerable kod örnekleri).
 - model_route: `security-model` (GPT-4o, config'de hazır).
 
-### PR#7 — `feature/s5-test-generator`
+### PR#8 — `feature/s5-test-generator`
 - `src/agents/test_generator/{__init__,agent,tools}.py` — `TestGeneratorAgent(BaseAgent)`: `generate_unit_tests()`, `generate_widget_tests()`, `generate_integration_tests()`. tools: `analyze_code_structure_tool`, `run_coverage_tool`.
 - `config/prompts/test_generator_system.md` — coverage hedefi ≥70%, framework kuralları.
 - MODIFY `src/orchestrator/nodes.py` — `test_generator` stub → real; add conftest stub.
