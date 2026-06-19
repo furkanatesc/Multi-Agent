@@ -25,6 +25,14 @@ This file is updated at every **sprint & PR closure**.
 - `orchestrator/nodes.py`: `security_scan` stub → real `SecurityAgent().run()`. `tests/conftest.py`: added autouse offline `SecurityAgent` stub. `orchestrator/edges.py` `security_gate()` unchanged (already correct: critical→HITL, score<80→fix, else proceed).
 - Tests: `test_security.py` (scoring, schemas, dependency audit, agent with mock LLM + fake Docker, graceful-degrade path) + `run_command` cases in `test_docker_runner.py`. **112 passing**, 1 skipped (Postgres); `mypy --strict` clean (44 files).
 
+#### Added (Sprint 5 — PR #8 — Test Generator, 2026-06-20)
+- `agents/test_generator/schemas.py`: `TestSuite` (LLM-facing: summary + `GeneratedTestFile[]`); each file carries `path`/`content`/`kind` (`unit`|`widget`|`integration`)/`target`.
+- `agents/test_generator/tools.py`: `analyze_code_structure_tool` (Docker-free source-vs-test split) + `run_coverage_tool` (reuses the inner-loop Node/Flutter images via `DockerRunner`, best-effort `parse_coverage_percent`, graceful degrade) + `CoverageResult`.
+- `agents/test_generator/agent.py`: **`TestGeneratorAgent(BaseAgent)`** — `generate_unit_tests()` / `generate_widget_tests()` / `generate_integration_tests()` + `run()`. Single-shot structured (decision #2): analyze → `complete_structured(TestSuite)` → merge tests into `source_code` → (if Docker up) coverage check vs the **≥70% target** sets `tests_passed`. Platform-aware kinds (Flutter adds widget tests). Route `test-generator-model` (Claude Sonnet).
+- `config/prompts/test_generator_system.md`: framework conventions (Jest/RTL, flutter_test), coverage target, JSON-only output.
+- `orchestrator/nodes.py`: `test_generator` stub → real agent. `tests/conftest.py`: added autouse offline `TestGeneratorAgent` stub. No `state.py`/`edges.py`/`graph.py` changes (`test_generator → reviewer` static edge unchanged).
+- Tests: `test_test_generator.py` (structure analysis, coverage parsing, schemas, platform kind mapping, coverage tool with fake runner, agent generate/run incl. below-target + Docker-unavailable paths). **129 passing**, 1 skipped (Postgres); `mypy --strict` clean (49 files). **Sprint 5 complete.**
+
 ---
 
 ## [Sprint 4] — Coder Agent & Inner Loop (Faz 4) — 2026-06-18 — 🔴 highest-risk sprint (Docker self-fix)

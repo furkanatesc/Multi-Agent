@@ -136,3 +136,37 @@ def _stub_security_agent(monkeypatch: pytest.MonkeyPatch) -> None:
             }
 
     monkeypatch.setattr("src.orchestrator.nodes.SecurityAgent", _FakeSecurity)
+
+
+@pytest.fixture(autouse=True)
+def _stub_test_generator_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replace the graph's TestGeneratorAgent with a deterministic offline stub.
+
+    Emits one generated test file with ``tests_passed=True``, mirroring a single
+    node's contribution (one message, +1 iteration, +0.01 cost) so the graph's
+    accumulators stay deterministic. The real, LLM-backed ``TestGeneratorAgent``
+    is exercised directly (with a mock client) in ``tests/test_test_generator.py``.
+    """
+
+    class _FakeTestGenerator:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            ...
+
+        def run(self, state: AgentState) -> dict[str, Any]:
+            return {
+                "messages": [
+                    AIMessage(
+                        content="[test_generator] stub tests generated",
+                        name="test_generator",
+                    )
+                ],
+                "source_code": {"src/App.test.stub.txt": "// stub test"},
+                "tests_passed": True,
+                "total_cost_usd": 0.01,
+                "iteration_count": 1,
+                "status": "test_generation",
+            }
+
+    monkeypatch.setattr(
+        "src.orchestrator.nodes.TestGeneratorAgent", _FakeTestGenerator
+    )

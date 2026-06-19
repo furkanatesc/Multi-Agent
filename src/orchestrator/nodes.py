@@ -27,6 +27,7 @@ from src.agents.architect.agent import ArchitectAgent
 from src.agents.coder.agent import CoderAgent
 from src.agents.coder.inner_loop import InnerLoopRunner
 from src.agents.security.agent import SecurityAgent
+from src.agents.test_generator.agent import TestGeneratorAgent
 from src.orchestrator.state import AgentState
 
 # Nominal per-step stub cost so the cost accumulator is visibly non-zero.
@@ -134,13 +135,13 @@ def hitl_gate(state: AgentState) -> dict[str, Any]:
 
 
 def test_generator(state: AgentState) -> dict[str, Any]:
-    """Stub Test Generator: marks generated tests as passing."""
-    return _step(
-        "test_generator",
-        "[test_generator] stub tests generated and passing",
-        tests_passed=True,
-        status="test_generation",
-    )
+    """Test Generator node: generates tests via :class:`TestGeneratorAgent` (S5).
+
+    Real LLM-backed agent. Generates unit/widget/integration tests, merges them
+    into ``source_code``, and (when Docker is available) sets ``tests_passed``
+    from the ≥70% coverage check.
+    """
+    return TestGeneratorAgent().run(state)
 
 
 def reviewer(state: AgentState) -> dict[str, Any]:
