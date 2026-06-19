@@ -33,6 +33,9 @@ This file is updated at every **sprint & PR closure**.
 - `orchestrator/nodes.py`: `test_generator` stub → real agent. `tests/conftest.py`: added autouse offline `TestGeneratorAgent` stub. No `state.py`/`edges.py`/`graph.py` changes (`test_generator → reviewer` static edge unchanged).
 - Tests: `test_test_generator.py` (structure analysis, coverage parsing, schemas, platform kind mapping, coverage tool with fake runner, agent generate/run incl. below-target + Docker-unavailable paths). **129 passing**, 1 skipped (Postgres); `mypy --strict` clean (49 files). **Sprint 5 complete.**
 
+#### Added (tooling — minimal CLI runner, 2026-06-20)
+- `src/__main__.py`: a minimal **`python -m src --prompt "..." [--platform ...]`** runner wrapping `build_graph()` so the pipeline can be invoked live before the Sprint 7 API. Includes an environment pre-flight (`check_environment` → LLM-key presence + Docker reachability): blocks with a clear error when no LLM key is set, warns when Docker is down (the inner loop hard-requires it). Reviewer/deployer/HITL are still stubs, so a run yields ADR + source + tests but auto-PASSes review. Tests: `test_cli.py` (arg parsing, env report, no-key guard). **138 passing**, 1 skipped; `mypy --strict` clean (51 files).
+
 ---
 
 ## [Sprint 4] — Coder Agent & Inner Loop (Faz 4) — 2026-06-18 — 🔴 highest-risk sprint (Docker self-fix)
