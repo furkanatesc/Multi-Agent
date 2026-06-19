@@ -1,7 +1,9 @@
 # 🗂️ Session Cache — Resume Point
 
-> **Stopping point:** 2026-06-20. **Sprint 5 complete.** Resume next session from **Sprint 6 (Reviewer & GitHub)**.
+> **Stopping point:** 2026-06-20 (eve). **Sprint 5 complete** + tooling (runner PR#9, config fix PR#10). Resume next session from **Sprint 6 (Reviewer & GitHub)** — OR a **live run** once valid API keys are set.
 > This file is the fast-resume handoff: where we are, environment state, decisions, and the exact next steps.
+>
+> 🔑 **Live-run blocker (found today):** `python -m src` runs but the `.env` `*_API_KEY`s are **placeholders/invalid** — Gemini returned `API_KEY_INVALID`, Anthropic/OpenAI fallbacks also failed auth. Router + fallback chain work; need ≥1 **valid** key (any provider — fallback covers the rest). `LANGSMITH_TRACING=true` + bad key spams harmless `403`; set it `false` to quiet.
 
 ---
 
@@ -19,18 +21,19 @@
 | S5 — Security Agent | PR#7 | ✅ merged | `SecurityAgent` (OWASP Mobile Top 10, deterministic score, semgrep/gitleaks) |
 | S5 — Test Generator | PR#8 | ✅ merged | `TestGeneratorAgent` (unit/widget/integration, ≥70% coverage via DockerRunner) |
 | Tooling — minimal runner | PR#9 | ✅ merged | `python -m src --prompt ...` live pipeline runner (`src/__main__.py`) |
+| Fix — LiteLLM provider prefix | PR#10 | ✅ merged | `anthropic/` prefix on Claude routes + config-prefix regression guard |
 
-- **Tests:** 138 passing, 1 skipped (Postgres integration). **`mypy --strict`:** clean across `src/` + `tests/` (51 files).
-- **Branches:** `main` (= `v0.1-alpha`), `develop` (current, = `18801c1`). No open feature branch.
+- **Tests:** 139 passing, 1 skipped (Postgres integration). **`mypy --strict`:** clean across `src/` + `tests/`.
+- **Branches:** `main` (= `v0.1-alpha`), `develop` (current, = `b29b029`). No open feature branch. All PRs (#1–#10) merged.
 
 ---
 
 ## 🧭 Git state
-- Working branch: **`develop`** (at `fbc5ecb`, S5 merged, up to date with `origin/develop`).
+- Working branch: **`develop`** (at `b29b029`, up to date with `origin/develop`).
 - `main` = `develop` at the M1 merge, tagged `v0.1-alpha` (pushed). **Note:** M2 (`v0.5-beta`) is due at S6 end per the plan — `develop → main` merge + tag.
 - Remote: `https://github.com/furkanatesc/Multi-Agent` (public).
 - Flow: `main ← develop ← feature/sN-*`, **squash** merge, delete branch after.
-- **PR numbering drift:** PR#6 (superpowers) + PR#9 (runner) were tooling PRs, so sprint PRs shifted vs the plan. S6 Reviewer = **PR#10** (plan calls it #8).
+- **PR numbering drift:** PR#6 (superpowers), PR#9 (runner), PR#10 (config fix) were non-sprint PRs. **S6 Reviewer = PR#11** (plan calls it #8).
 - `gh` CLI at `C:\Program Files\GitHub CLI\gh.exe`, authed as `furkanatesc` (token has `workflow`; **lacks `Administration`** → branch protection via web UI, currently OFF).
 
 ## 🖥️ Environment state (already set up)
@@ -59,7 +62,7 @@
 
 Working rhythm (as agreed): **file analysis → (b) solid foundation, review → (a) the rest → PR**. ReviewerAgent follows **decision #2** (single-shot structured, like Architect/Security). Bağımlılık: S5 çıktıları (security report + generated tests + source_code).
 
-### PR#10 — `feature/s6-reviewer-github`
+### PR#11 — `feature/s6-reviewer-github`
 - `src/agents/reviewer/{__init__,agent,tools}.py` — `ReviewerAgent(BaseAgent)`: `review_code()`, `analyze_ci_logs()`, `create_pr_review()`, PASS/FAIL decision. Likely a `ReviewReport` structured schema (verdict + inline comments + rationale).
 - `src/integrations/github_client.py` — `GitHubClient`: `create_branch()`, `commit_files()`, `create_pull_request()`, `get_ci_logs()`, `submit_review()`, `auto_merge()` (PyGithub).
 - `config/prompts/reviewer_system.md` — SOLID, Clean Code, review format.
@@ -76,11 +79,13 @@ Working rhythm (as agreed): **file analysis → (b) solid foundation, review →
 ---
 
 ## 🔁 How to resume next session
-1. `git checkout develop && git pull` (ensure latest, = S5 at `fbc5ecb`).
-2. Start Docker Desktop; `docker ps` to confirm. `docker-compose up -d` for postgres/redis if running checkpoint/live tests.
-3. Say "continue" → I produce the **Sprint 6 file analysis**, then (b) foundation → review → (a) rest, open **PR#10**.
+1. `git checkout develop && git pull` (ensure latest, = `b29b029`).
+2. Start Docker Desktop; `docker ps` to confirm.
+3. Choose:
+   - **Live run:** put ≥1 **valid** API key in `.env` (Gemini/Anthropic/OpenAI), then `python -m src --prompt "..." --platform react-native`. First inner-loop run builds `mobile-agent-node` (slow). (Optional: `LANGSMITH_TRACING=false` to silence trace 403s.)
+   - **Sprint 6:** say "continue" → I produce the **Sprint 6 file analysis**, then (b) foundation → review → (a) rest, open **PR#11** (`feature/s6-reviewer-github`).
 
-> 💡 **Minimal runner shipped (PR#9):** `python -m src --prompt "..." [--platform ...]` runs the pipeline live (needs Docker + API keys). Reviewer/deployer/HITL are still stubs, so a live run produces ADR + code + tests but auto-PASSes review and fake-deploys.
+> 💡 **Minimal runner shipped (PR#9):** `python -m src --prompt "..." [--platform ...]`. Reviewer/deployer/HITL are still stubs, so a live run produces ADR + code + tests but auto-PASSes review and fake-deploys.
 
 ---
 
