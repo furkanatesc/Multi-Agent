@@ -18,9 +18,10 @@
 | Tooling — superpowers | PR#6 | ✅ merged | Vendored 14 superpowers skills → `.claude/skills/`; gortex plan `docs/06` |
 | S5 — Security Agent | PR#7 | ✅ merged | `SecurityAgent` (OWASP Mobile Top 10, deterministic score, semgrep/gitleaks) |
 | S5 — Test Generator | PR#8 | ✅ merged | `TestGeneratorAgent` (unit/widget/integration, ≥70% coverage via DockerRunner) |
+| Tooling — minimal runner | PR#9 | ✅ merged | `python -m src --prompt ...` live pipeline runner (`src/__main__.py`) |
 
-- **Tests:** 129 passing, 1 skipped (Postgres integration). **`mypy --strict`:** clean across `src/` + `tests/` (49 files).
-- **Branches:** `main` (= `v0.1-alpha`), `develop` (current, = S5 at `fbc5ecb`). No open feature branch.
+- **Tests:** 138 passing, 1 skipped (Postgres integration). **`mypy --strict`:** clean across `src/` + `tests/` (51 files).
+- **Branches:** `main` (= `v0.1-alpha`), `develop` (current, = `18801c1`). No open feature branch.
 
 ---
 
@@ -29,7 +30,7 @@
 - `main` = `develop` at the M1 merge, tagged `v0.1-alpha` (pushed). **Note:** M2 (`v0.5-beta`) is due at S6 end per the plan — `develop → main` merge + tag.
 - Remote: `https://github.com/furkanatesc/Multi-Agent` (public).
 - Flow: `main ← develop ← feature/sN-*`, **squash** merge, delete branch after.
-- **PR numbering drift:** PR#6 was the superpowers tooling PR, so sprint PRs shifted +1 vs the sprint plan. S6 Reviewer = **PR#9** (plan calls it #8).
+- **PR numbering drift:** PR#6 (superpowers) + PR#9 (runner) were tooling PRs, so sprint PRs shifted vs the plan. S6 Reviewer = **PR#10** (plan calls it #8).
 - `gh` CLI at `C:\Program Files\GitHub CLI\gh.exe`, authed as `furkanatesc` (token has `workflow`; **lacks `Administration`** → branch protection via web UI, currently OFF).
 
 ## 🖥️ Environment state (already set up)
@@ -58,7 +59,7 @@
 
 Working rhythm (as agreed): **file analysis → (b) solid foundation, review → (a) the rest → PR**. ReviewerAgent follows **decision #2** (single-shot structured, like Architect/Security). Bağımlılık: S5 çıktıları (security report + generated tests + source_code).
 
-### PR#9 — `feature/s6-reviewer-github`
+### PR#10 — `feature/s6-reviewer-github`
 - `src/agents/reviewer/{__init__,agent,tools}.py` — `ReviewerAgent(BaseAgent)`: `review_code()`, `analyze_ci_logs()`, `create_pr_review()`, PASS/FAIL decision. Likely a `ReviewReport` structured schema (verdict + inline comments + rationale).
 - `src/integrations/github_client.py` — `GitHubClient`: `create_branch()`, `commit_files()`, `create_pull_request()`, `get_ci_logs()`, `submit_review()`, `auto_merge()` (PyGithub).
 - `config/prompts/reviewer_system.md` — SOLID, Clean Code, review format.
@@ -77,9 +78,9 @@ Working rhythm (as agreed): **file analysis → (b) solid foundation, review →
 ## 🔁 How to resume next session
 1. `git checkout develop && git pull` (ensure latest, = S5 at `fbc5ecb`).
 2. Start Docker Desktop; `docker ps` to confirm. `docker-compose up -d` for postgres/redis if running checkpoint/live tests.
-3. Say "continue" → I produce the **Sprint 6 file analysis**, then (b) foundation → review → (a) rest, open **PR#9**.
+3. Say "continue" → I produce the **Sprint 6 file analysis**, then (b) foundation → review → (a) rest, open **PR#10**.
 
-> 💡 **Optional (path A, not yet built):** a minimal runner (`python -m src` / `scripts/run.py`) wrapping `build_graph()` so the pipeline can be invoked live with a prompt. Useful to *try* the system before the S7 API. Needs Docker + API keys. Reviewer/deployer/HITL are still stubs, so a live run produces code + tests but auto-PASSes review and fake-deploys.
+> 💡 **Minimal runner shipped (PR#9):** `python -m src --prompt "..." [--platform ...]` runs the pipeline live (needs Docker + API keys). Reviewer/deployer/HITL are still stubs, so a live run produces ADR + code + tests but auto-PASSes review and fake-deploys.
 
 ---
 
