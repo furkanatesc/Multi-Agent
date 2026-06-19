@@ -10,6 +10,10 @@ This file is updated at every **sprint & PR closure**.
 
 > ⏸️ **Stopping point (2026-06-18).** Sprint 4 complete (PRs #4 + #5 merged to `develop`). Next session → **Sprint 5 — Security Agent & Test Generator (Faz 5)**. See `cache.md` for full resume context.
 
+#### Added (tooling — `feature/integrate-superpowers`, 2026-06-19)
+- **Vendored [superpowers](https://github.com/obra/superpowers) agent skills** (MIT, commit `896224c`) into `.claude/skills/` — 14 dev-workflow skills (TDD, systematic-debugging, brainstorming, writing/executing-plans, subagent-driven-development, code-review flows, git-worktrees, verification-before-completion). Auto-discovered by Claude Code; not a plugin install. Origin/license/update notes in `.claude/skills/VENDORED.md`; session-start hooks copied to `.claude/superpowers-hooks/` (not wired into settings — optional).
+- `docs/06_gortex_vendoring_plan.md`: integration/vendor **plan** for [gortex](https://github.com/zzet/gortex) (Apache-2.0). Source NOT moved in yet — deferred to brownfield **Milestone B** (post-S5) per `docs/05_expansion_vision.md`; documents subtree-vs-fork options and the Python↔gortex MCP/HTTP bridge.
+
 ---
 
 ## [Sprint 4] — Coder Agent & Inner Loop (Faz 4) — 2026-06-18 — 🔴 highest-risk sprint (Docker self-fix)
