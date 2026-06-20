@@ -29,6 +29,7 @@ from src.agents.coder.inner_loop import InnerLoopRunner
 from src.agents.reviewer.agent import ReviewerAgent
 from src.agents.security.agent import SecurityAgent
 from src.agents.test_generator.agent import TestGeneratorAgent
+from src.observability import metrics
 from src.orchestrator.state import AgentState
 
 # Nominal per-step stub cost so the cost accumulator is visibly non-zero.
@@ -97,6 +98,7 @@ def inner_loop_check(state: AgentState) -> dict[str, Any]:
         state.get("source_code") or {}, state.get("platform")
     )
     verdict = "passed" if result.passed else "failed"
+    metrics.record_loop("inner", result.iterations)
     return {
         "messages": [
             AIMessage(
@@ -153,7 +155,11 @@ def reviewer(state: AgentState) -> dict[str, Any]:
     ``outer_loop_count`` that the ``review_decision`` edge routes on
     (approve→deploy, reject→coder, escalate→END once the outer cap is hit).
     """
-    return ReviewerAgent().run(state)
+    update = ReviewerAgent().run(state)
+    metrics.record_loop("outer", 1)
+    if update.get("review_decision") == "FAIL":
+        metrics.record_review_rejection()
+    return update
 
 
 def deployer(state: AgentState) -> dict[str, Any]:
