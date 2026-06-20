@@ -1,7 +1,8 @@
 # 🗂️ Session Cache — Resume Point
 
-> **Stopping point:** 2026-06-20 (late). **Sprint 6 Reviewer+GitHub shipped as PR#11 (OPEN, against `develop`).** Resume next session by **merging PR#11**, then start **Sprint 7 (HITL gate + API/FastAPI)** — OR a **live run** once valid API keys are set.
-> ⏭️ **Immediate next step:** merge PR#11 (`feature/s6-reviewer-github`) → `develop`, delete branch. Then consider **M2 (`v0.5-beta`)** tag (`develop → main`) — per plan M2 is due at S6 end. After that, Sprint 7.
+> **Stopping point:** 2026-06-21. **PR#11 (S6 Reviewer) merged → `develop` (`3a45853`).** **Sprint 7 started:** PR#12 (observability, lean) **OPEN** against `develop`. Next: merge PR#12, then **PR#13 (HITL gates + API run/approve endpoints)**.
+> ⏭️ **Immediate next step:** merge PR#12 (`feature/s7-observability`) → `develop`, then build **PR#13 — HITL** (`feature/s7-hitl-guardrails`).
+> ℹ️ **M2 (`v0.5-beta`) tag** still pending — plan puts it at S6 end; can be cut from `develop` anytime (decide after S7 or now).
 > This file is the fast-resume handoff: where we are, environment state, decisions, and the exact next steps.
 >
 > 🔑 **Live-run blocker (found today):** `python -m src` runs but the `.env` `*_API_KEY`s are **placeholders/invalid** — Gemini returned `API_KEY_INVALID`, Anthropic/OpenAI fallbacks also failed auth. Router + fallback chain work; need ≥1 **valid** key (any provider — fallback covers the rest). `LANGSMITH_TRACING=true` + bad key spams harmless `403`; set it `false` to quiet.
@@ -23,10 +24,12 @@
 | S5 — Test Generator | PR#8 | ✅ merged | `TestGeneratorAgent` (unit/widget/integration, ≥70% coverage via DockerRunner) |
 | Tooling — minimal runner | PR#9 | ✅ merged | `python -m src --prompt ...` live pipeline runner (`src/__main__.py`) |
 | Fix — LiteLLM provider prefix | PR#10 | ✅ merged | `anthropic/` prefix on Claude routes + config-prefix regression guard |
-| S6 — Reviewer & GitHub | PR#11 | 🟡 **OPEN** | `ReviewerAgent` (deterministic PASS/FAIL) + `GitHubClient` (PyGithub facade) |
+| S6 — Reviewer & GitHub | PR#11 | ✅ merged | `ReviewerAgent` (deterministic PASS/FAIL) + `GitHubClient` (PyGithub facade) |
+| S7 — Observability (lean) | PR#12 | 🟡 **OPEN** | Prometheus `/metrics` + LangSmith tracer + **FastAPI skeleton** (`src/api`, `src/observability`) |
 
-- **Tests:** **172 passing**, 1 skipped (Postgres integration). **`mypy --strict`:** clean (58 files). **`ruff`:** clean.
-- **Branches:** `main` (= `v0.1-alpha`), `develop` (= `b29b029`). **Open:** `feature/s6-reviewer-github` (PR#11, 1 commit `95628b7`, base `develop`).
+- **Tests:** **186 passing**, 1 skipped (Postgres integration). **`mypy --strict`:** clean (66 files). **`ruff`:** clean (new/touched files).
+- **Branches:** `main` (= `v0.1-alpha`), `develop` (= `3a45853`, includes PR#11). **Open:** `feature/s7-observability` (PR#12, base `develop`).
+- ⚠️ **Local-only:** `pytest` exits 255 with a LangSmith `RuntimeError: can't create new thread at interpreter shutdown` — because local `.env` has `LANGSMITH_TRACING=true`. **All tests pass**; CI (no `.env`, flag defaults false) is unaffected. Set `LANGSMITH_TRACING=false` locally to silence.
 
 ---
 
@@ -60,9 +63,9 @@
 
 ---
 
-## ✅ Sprint 6 — Reviewer Agent & GitHub Integration (PR#11, OPEN)
+## ✅ Sprint 6 — Reviewer Agent & GitHub Integration (PR#11, MERGED → `3a45853`)
 
-**Shipped** (commit `95628b7`, branch `feature/s6-reviewer-github`, PR#11 → `develop`):
+**Shipped** (PR#11 squash-merged to `develop`):
 - `agents/reviewer/review_rules.py` — **deterministic verdict**: `decide_verdict()` FAILs iff any `blocker`/`major` comment (ladder blocker>major>minor>nit). Mirrors Security's deterministic gate (#6); keeps `review_decision` reproducible.
 - `agents/reviewer/schemas.py` — two-layer `CodeReview` (LLM) → `ReviewReport` (computed `verdict`) + `CILogAnalysis`.
 - `agents/reviewer/agent.py` — `ReviewerAgent(BaseAgent)` single-shot structured (#2): `review_code` / `analyze_ci_logs` / `create_pr_review` / `run`. `run` writes `review_decision`+`review_notes`, increments `outer_loop_count`. **GitHub I/O is a separate explicit capability** so the graph node stays offline-testable (like Security's `run` not needing Docker). Route `reviewer-model` (GPT-4o). `analyze_ci_logs` zero-cost on empty logs.
@@ -75,10 +78,24 @@
 - Live GitHub ops need `GITHUB_TOKEN` with `repo` scope; current token has `workflow` only. Tests mock PyGithub (no live calls).
 - **Design call:** Reviewer's graph `run()` does NOT call GitHub (pure/offline); the PyGithub path is for the live/PR-automation flow, invoked explicitly. Same philosophy as Security/Docker.
 
-## ▶️ NEXT (after merging PR#11)
-1. **Merge PR#11** → `develop`, delete branch.
-2. **M2 milestone?** Plan says `v0.5-beta` (`develop → main` + tag) due at S6 end — decide whether to cut it now.
-3. **Sprint 7 — HITL gate + FastAPI API:** real `hitl_gate` (LangGraph `interrupt`/approval, `hitl_approvals` table already migrated), `deployer` real (or GitHub auto-merge via `GitHubClient.auto_merge` wired behind HITL), FastAPI endpoints over `build_graph()`. PR#12.
+## ▶️ Sprint 7 — Observability & HITL (in progress)
+
+**Decisions (user, 2026-06-21):** ① plan order — **observability first, then HITL**. ② observability **lean** (no Grafana/compose now). ③ HITL = **deploy-approval gate + make security-critical gate real** (not all 4 gates).
+
+### ✅ PR#12 — Observability (lean) — OPEN (`feature/s7-observability`)
+- `src/observability/metrics.py` (Prometheus, dedicated registry), `langsmith_tracer.py` (env-driven, opt-in). `src/api/main.py` FastAPI skeleton (`/health`, `/metrics`). LiteLLM `completion()` + nodes instrumented. Tests: metrics/api/tracer. 186 pass.
+
+### ▶️ NEXT: PR#13 — HITL Gates & Guardrails (`feature/s7-hitl-guardrails`)
+- `src/orchestrator/hitl.py` — `HITLGate` (deploy-approval + security-critical). Pending/approve/reject + timeout.
+- `src/orchestrator/guardrails.py` — `GuardrailsEngine` (cost/iteration/token caps; consolidates `edges.cost_check`).
+- `src/orchestrator/graph.py` — **`interrupt_before`** the deploy gate; needs a **checkpointer + per-project `thread_id`** so the graph can pause/resume (the CLI runner currently passes NO checkpointer — wire `InMemorySaver` for CLI/tests, `PostgresSaver` for prod).
+- `src/api/main.py` — add `POST /api/projects` (start run, returns interrupted state) + `POST /api/hitl/{id}/approve` (resume via `Command(resume=...)`); optional WebSocket notify (scope-cut candidate).
+- Persist HITL requests to the **`hitl_approvals`** table (already migrated: gate_type ∈ architecture/security/deploy/budget; status pending/approved/rejected/timeout).
+- Wire `deployer` to optionally call `GitHubClient.auto_merge` **after** deploy approval (auto_merge currently OFF by default from PR#11).
+- Tests: `test_hitl.py`, `test_guardrails.py` (approve/reject/timeout, cost/iteration caps).
+
+### M2 milestone
+Plan puts `v0.5-beta` (`develop → main` + tag) at S6 end — still uncut; decide now or after S7.
 
 ---
 
