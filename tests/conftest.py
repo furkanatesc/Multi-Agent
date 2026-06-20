@@ -170,3 +170,35 @@ def _stub_test_generator_agent(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "src.orchestrator.nodes.TestGeneratorAgent", _FakeTestGenerator
     )
+
+
+@pytest.fixture(autouse=True)
+def _stub_reviewer_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replace the graph's ReviewerAgent with a deterministic offline stub.
+
+    Emits a PASS verdict and increments the outer-loop counter, mirroring a
+    single node's contribution (one message, +1 iteration, +0.01 cost) so the
+    graph's accumulator and outer-loop assertions stay deterministic. The real,
+    LLM-backed ``ReviewerAgent`` is exercised directly (with a mock client) in
+    ``tests/test_reviewer.py``; this only patches the symbol the node uses.
+    """
+
+    class _FakeReviewer:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            ...
+
+        def run(self, state: AgentState) -> dict[str, Any]:
+            outer = int(state.get("outer_loop_count", 0)) + 1
+            return {
+                "messages": [
+                    AIMessage(content="[reviewer] stub review: PASS", name="reviewer")
+                ],
+                "review_decision": "PASS",
+                "review_notes": "LGTM (stub review)",
+                "outer_loop_count": outer,
+                "total_cost_usd": 0.01,
+                "iteration_count": 1,
+                "status": "review",
+            }
+
+    monkeypatch.setattr("src.orchestrator.nodes.ReviewerAgent", _FakeReviewer)
