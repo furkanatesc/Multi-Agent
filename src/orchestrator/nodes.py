@@ -26,6 +26,7 @@ from langchain_core.messages import AIMessage
 from src.agents.architect.agent import ArchitectAgent
 from src.agents.coder.agent import CoderAgent
 from src.agents.coder.inner_loop import InnerLoopRunner
+from src.agents.reviewer.agent import ReviewerAgent
 from src.agents.security.agent import SecurityAgent
 from src.agents.test_generator.agent import TestGeneratorAgent
 from src.orchestrator.state import AgentState
@@ -145,16 +146,14 @@ def test_generator(state: AgentState) -> dict[str, Any]:
 
 
 def reviewer(state: AgentState) -> dict[str, Any]:
-    """Stub Reviewer: returns PASS and increments the outer-loop counter."""
-    outer = int(state.get("outer_loop_count", 0)) + 1
-    return _step(
-        "reviewer",
-        "[reviewer] stub review: PASS",
-        review_decision="PASS",
-        review_notes="LGTM (stub review)",
-        outer_loop_count=outer,
-        status="review",
-    )
+    """Reviewer node: SOLID/Clean-Code review via :class:`ReviewerAgent` (S6).
+
+    Real LLM-backed agent. Returns a partial state update with the deterministic
+    ``review_decision`` (PASS/FAIL) + ``review_notes`` and an incremented
+    ``outer_loop_count`` that the ``review_decision`` edge routes on
+    (approve→deploy, reject→coder, escalate→END once the outer cap is hit).
+    """
+    return ReviewerAgent().run(state)
 
 
 def deployer(state: AgentState) -> dict[str, Any]:

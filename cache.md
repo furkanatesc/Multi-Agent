@@ -1,6 +1,7 @@
 # 🗂️ Session Cache — Resume Point
 
-> **Stopping point:** 2026-06-20 (eve). **Sprint 5 complete** + tooling (runner PR#9, config fix PR#10). Resume next session from **Sprint 6 (Reviewer & GitHub)** — OR a **live run** once valid API keys are set.
+> **Stopping point:** 2026-06-20 (late). **Sprint 6 Reviewer+GitHub shipped as PR#11 (OPEN, against `develop`).** Resume next session by **merging PR#11**, then start **Sprint 7 (HITL gate + API/FastAPI)** — OR a **live run** once valid API keys are set.
+> ⏭️ **Immediate next step:** merge PR#11 (`feature/s6-reviewer-github`) → `develop`, delete branch. Then consider **M2 (`v0.5-beta`)** tag (`develop → main`) — per plan M2 is due at S6 end. After that, Sprint 7.
 > This file is the fast-resume handoff: where we are, environment state, decisions, and the exact next steps.
 >
 > 🔑 **Live-run blocker (found today):** `python -m src` runs but the `.env` `*_API_KEY`s are **placeholders/invalid** — Gemini returned `API_KEY_INVALID`, Anthropic/OpenAI fallbacks also failed auth. Router + fallback chain work; need ≥1 **valid** key (any provider — fallback covers the rest). `LANGSMITH_TRACING=true` + bad key spams harmless `403`; set it `false` to quiet.
@@ -22,9 +23,10 @@
 | S5 — Test Generator | PR#8 | ✅ merged | `TestGeneratorAgent` (unit/widget/integration, ≥70% coverage via DockerRunner) |
 | Tooling — minimal runner | PR#9 | ✅ merged | `python -m src --prompt ...` live pipeline runner (`src/__main__.py`) |
 | Fix — LiteLLM provider prefix | PR#10 | ✅ merged | `anthropic/` prefix on Claude routes + config-prefix regression guard |
+| S6 — Reviewer & GitHub | PR#11 | 🟡 **OPEN** | `ReviewerAgent` (deterministic PASS/FAIL) + `GitHubClient` (PyGithub facade) |
 
-- **Tests:** 139 passing, 1 skipped (Postgres integration). **`mypy --strict`:** clean across `src/` + `tests/`.
-- **Branches:** `main` (= `v0.1-alpha`), `develop` (current, = `b29b029`). No open feature branch. All PRs (#1–#10) merged.
+- **Tests:** **172 passing**, 1 skipped (Postgres integration). **`mypy --strict`:** clean (58 files). **`ruff`:** clean.
+- **Branches:** `main` (= `v0.1-alpha`), `develop` (= `b29b029`). **Open:** `feature/s6-reviewer-github` (PR#11, 1 commit `95628b7`, base `develop`).
 
 ---
 
@@ -58,23 +60,25 @@
 
 ---
 
-## ▶️ NEXT: Sprint 6 — Reviewer Agent & GitHub Integration (Faz 6) 🟢
+## ✅ Sprint 6 — Reviewer Agent & GitHub Integration (PR#11, OPEN)
 
-Working rhythm (as agreed): **file analysis → (b) solid foundation, review → (a) the rest → PR**. ReviewerAgent follows **decision #2** (single-shot structured, like Architect/Security). Bağımlılık: S5 çıktıları (security report + generated tests + source_code).
+**Shipped** (commit `95628b7`, branch `feature/s6-reviewer-github`, PR#11 → `develop`):
+- `agents/reviewer/review_rules.py` — **deterministic verdict**: `decide_verdict()` FAILs iff any `blocker`/`major` comment (ladder blocker>major>minor>nit). Mirrors Security's deterministic gate (#6); keeps `review_decision` reproducible.
+- `agents/reviewer/schemas.py` — two-layer `CodeReview` (LLM) → `ReviewReport` (computed `verdict`) + `CILogAnalysis`.
+- `agents/reviewer/agent.py` — `ReviewerAgent(BaseAgent)` single-shot structured (#2): `review_code` / `analyze_ci_logs` / `create_pr_review` / `run`. `run` writes `review_decision`+`review_notes`, increments `outer_loop_count`. **GitHub I/O is a separate explicit capability** so the graph node stays offline-testable (like Security's `run` not needing Docker). Route `reviewer-model` (GPT-4o). `analyze_ci_logs` zero-cost on empty logs.
+- `integrations/github_client.py` — `GitHubClient` PyGithub facade (`create_branch`/`commit_files` create-or-update/`create_pull_request`/`get_ci_logs`/`submit_review`/`auto_merge`), all failures → `GitHubError`; verdict→event mapping (PASS→APPROVE, FAIL→REQUEST_CHANGES), line-anchored→inline comments.
+- `config/prompts/reviewer_system.md`; `orchestrator/nodes.py` reviewer stub→real; `conftest.py` autouse offline `ReviewerAgent` stub. `edges.py` unchanged (already correct).
+- Tests `test_reviewer.py` + `test_github_client.py`. **172 passing**, 1 skipped; mypy strict clean; ruff clean.
 
-### PR#11 — `feature/s6-reviewer-github`
-- `src/agents/reviewer/{__init__,agent,tools}.py` — `ReviewerAgent(BaseAgent)`: `review_code()`, `analyze_ci_logs()`, `create_pr_review()`, PASS/FAIL decision. Likely a `ReviewReport` structured schema (verdict + inline comments + rationale).
-- `src/integrations/github_client.py` — `GitHubClient`: `create_branch()`, `commit_files()`, `create_pull_request()`, `get_ci_logs()`, `submit_review()`, `auto_merge()` (PyGithub).
-- `config/prompts/reviewer_system.md` — SOLID, Clean Code, review format.
-- MODIFY `src/orchestrator/nodes.py` — `reviewer` stub → real; `deployer` may stay stub until S7. Add conftest stub.
-- VERIFY `src/orchestrator/edges.py` — `review_decision()` already correct (PASS→deploy, FAIL+cap→escalate, FAIL→coder). Outer-loop cap (`should_escalate`) already wired.
-- `tests/test_reviewer.py` + `tests/test_github_client.py` (mock PyGithub).
-- model_route: `reviewer-model` (config'de hazır).
+### ⚠️ Carry-forward decisions
+- **`auto_merge` is OFF by default** (`create_pr_review(..., auto_merge=False)`) — gating it behind HITL is a **Sprint 7** decision (was the noted scope-cut candidate; deferred to S7, not cut).
+- Live GitHub ops need `GITHUB_TOKEN` with `repo` scope; current token has `workflow` only. Tests mock PyGithub (no live calls).
+- **Design call:** Reviewer's graph `run()` does NOT call GitHub (pure/offline); the PyGithub path is for the live/PR-automation flow, invoked explicitly. Same philosophy as Security/Docker.
 
-### ⚠️ Heads-up for S6
-- GitHub API needs a real `GITHUB_TOKEN` in `.env` (token already has `workflow` scope; PR/review need `repo`). Tests mock PyGithub — no live calls.
-- The `reviewer` node increments `outer_loop_count`; the FAIL→coder back-edge + cap=5 (`should_escalate`) is the **outer loop**. Mirror how S4 handled the inner loop.
-- Consider whether auto-merge belongs to Reviewer (S6) or HITL (S7) — plan lists auto-merge under S6 but it's a scope-cut candidate.
+## ▶️ NEXT (after merging PR#11)
+1. **Merge PR#11** → `develop`, delete branch.
+2. **M2 milestone?** Plan says `v0.5-beta` (`develop → main` + tag) due at S6 end — decide whether to cut it now.
+3. **Sprint 7 — HITL gate + FastAPI API:** real `hitl_gate` (LangGraph `interrupt`/approval, `hitl_approvals` table already migrated), `deployer` real (or GitHub auto-merge via `GitHubClient.auto_merge` wired behind HITL), FastAPI endpoints over `build_graph()`. PR#12.
 
 ---
 
@@ -83,9 +87,9 @@ Working rhythm (as agreed): **file analysis → (b) solid foundation, review →
 2. Start Docker Desktop; `docker ps` to confirm.
 3. Choose:
    - **Live run:** put ≥1 **valid** API key in `.env` (Gemini/Anthropic/OpenAI), then `python -m src --prompt "..." --platform react-native`. First inner-loop run builds `mobile-agent-node` (slow). (Optional: `LANGSMITH_TRACING=false` to silence trace 403s.)
-   - **Sprint 6:** say "continue" → I produce the **Sprint 6 file analysis**, then (b) foundation → review → (a) rest, open **PR#11** (`feature/s6-reviewer-github`).
+   - **Sprint 7:** say "continue" → merge PR#11 first, then I produce the **Sprint 7 file analysis** (HITL gate + FastAPI), open **PR#12**.
 
-> 💡 **Minimal runner shipped (PR#9):** `python -m src --prompt "..." [--platform ...]`. Reviewer/deployer/HITL are still stubs, so a live run produces ADR + code + tests but auto-PASSes review and fake-deploys.
+> 💡 **Minimal runner (PR#9):** `python -m src --prompt "..." [--platform ...]`. After PR#11, **reviewer is real** (deterministic PASS/FAIL); deployer/HITL still stubs, so a live run produces ADR + code + tests + a real review verdict but fake-deploys.
 
 ---
 
