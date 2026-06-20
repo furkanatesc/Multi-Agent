@@ -1,8 +1,8 @@
 # 🗂️ Session Cache — Resume Point
 
-> **Stopping point:** 2026-06-21. **PR#11 (S6 Reviewer) merged → `develop` (`3a45853`).** **Sprint 7 started:** PR#12 (observability, lean) **OPEN** against `develop`. Next: merge PR#12, then **PR#13 (HITL gates + API run/approve endpoints)**.
-> ⏭️ **Immediate next step:** merge PR#12 (`feature/s7-observability`) → `develop`, then build **PR#13 — HITL** (`feature/s7-hitl-guardrails`).
-> ℹ️ **M2 (`v0.5-beta`) tag** still pending — plan puts it at S6 end; can be cut from `develop` anytime (decide after S7 or now).
+> **Stopping point:** 2026-06-21 (eve — resume tomorrow). **PR#11 (S6 Reviewer) + PR#12 (S7 observability) both MERGED → `develop` (`8d288f6`).** No open PRs/branches. Working tree clean.
+> ⏭️ **Resume next session with: build PR#13 — HITL Gates & Guardrails** (`feature/s7-hitl-guardrails`). Full task list in the Sprint 7 section below. Decisions already locked: deploy-approval + security gate (not all 4); needs checkpointer + `thread_id` wiring for `interrupt_before`.
+> ℹ️ **M2 (`v0.5-beta`) tag** still pending — plan puts it at S6 end; can cut from `develop` anytime (decide after S7 or now).
 > This file is the fast-resume handoff: where we are, environment state, decisions, and the exact next steps.
 >
 > 🔑 **Live-run blocker (found today):** `python -m src` runs but the `.env` `*_API_KEY`s are **placeholders/invalid** — Gemini returned `API_KEY_INVALID`, Anthropic/OpenAI fallbacks also failed auth. Router + fallback chain work; need ≥1 **valid** key (any provider — fallback covers the rest). `LANGSMITH_TRACING=true` + bad key spams harmless `403`; set it `false` to quiet.
@@ -25,10 +25,10 @@
 | Tooling — minimal runner | PR#9 | ✅ merged | `python -m src --prompt ...` live pipeline runner (`src/__main__.py`) |
 | Fix — LiteLLM provider prefix | PR#10 | ✅ merged | `anthropic/` prefix on Claude routes + config-prefix regression guard |
 | S6 — Reviewer & GitHub | PR#11 | ✅ merged | `ReviewerAgent` (deterministic PASS/FAIL) + `GitHubClient` (PyGithub facade) |
-| S7 — Observability (lean) | PR#12 | 🟡 **OPEN** | Prometheus `/metrics` + LangSmith tracer + **FastAPI skeleton** (`src/api`, `src/observability`) |
+| S7 — Observability (lean) | PR#12 | ✅ merged | Prometheus `/metrics` + LangSmith tracer + **FastAPI skeleton** (`src/api`, `src/observability`) |
 
 - **Tests:** **186 passing**, 1 skipped (Postgres integration). **`mypy --strict`:** clean (66 files). **`ruff`:** clean (new/touched files).
-- **Branches:** `main` (= `v0.1-alpha`), `develop` (= `3a45853`, includes PR#11). **Open:** `feature/s7-observability` (PR#12, base `develop`).
+- **Branches:** `main` (= `v0.1-alpha`), `develop` (= `8d288f6`, includes PR#11 + PR#12). **No open feature branches.**
 - ⚠️ **Local-only:** `pytest` exits 255 with a LangSmith `RuntimeError: can't create new thread at interpreter shutdown` — because local `.env` has `LANGSMITH_TRACING=true`. **All tests pass**; CI (no `.env`, flag defaults false) is unaffected. Set `LANGSMITH_TRACING=false` locally to silence.
 
 ---
@@ -82,7 +82,7 @@
 
 **Decisions (user, 2026-06-21):** ① plan order — **observability first, then HITL**. ② observability **lean** (no Grafana/compose now). ③ HITL = **deploy-approval gate + make security-critical gate real** (not all 4 gates).
 
-### ✅ PR#12 — Observability (lean) — OPEN (`feature/s7-observability`)
+### ✅ PR#12 — Observability (lean) — MERGED (`8d288f6`)
 - `src/observability/metrics.py` (Prometheus, dedicated registry), `langsmith_tracer.py` (env-driven, opt-in). `src/api/main.py` FastAPI skeleton (`/health`, `/metrics`). LiteLLM `completion()` + nodes instrumented. Tests: metrics/api/tracer. 186 pass.
 
 ### ▶️ NEXT: PR#13 — HITL Gates & Guardrails (`feature/s7-hitl-guardrails`)
