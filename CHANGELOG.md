@@ -8,7 +8,12 @@ This file is updated at every **sprint & PR closure**.
 
 ## [Unreleased]
 
-> ⏸️ **Stopping point (2026-06-18).** Sprint 4 complete (PRs #4 + #5 merged to `develop`). Next session → **Sprint 5 — Security Agent & Test Generator (Faz 5)**. See `cache.md` for full resume context.
+_Nothing yet — next: **Sprint 8 — Dashboard UI**._
+
+---
+
+## [v0.5-beta] — 2026-06-21 — 🏷️ Milestone M2: Full Autonomous Pipeline
+Released via `develop → main`. Builds on M1 (Core Engine) with Sprints 4–7: the Coder + Docker inner self-fix loop, the Security agent + Test generator, the Reviewer + GitHub integration, lean observability (Prometheus `/metrics` + LangSmith tracer + FastAPI), and the HITL gates + `GuardrailsEngine`. The full pipeline now runs end-to-end with human-in-the-loop approval — **Architect → Coder → InnerLoop → Security → TestGen → Reviewer → HITL(security) → Reviewer → HITL(deploy) → Deploy**. **223 tests passing**, 1 skipped (Postgres integration, passes on CI); `mypy --strict` clean; CI green. (PRs #4–#13; non-sprint tooling PRs #6/#9/#10.)
 
 #### Added (tooling — `feature/integrate-superpowers`, 2026-06-19)
 - **Vendored [superpowers](https://github.com/obra/superpowers) agent skills** (MIT, commit `896224c`) into `.claude/skills/` — 14 dev-workflow skills (TDD, systematic-debugging, brainstorming, writing/executing-plans, subagent-driven-development, code-review flows, git-worktrees, verification-before-completion). Auto-discovered by Claude Code; not a plugin install. Origin/license/update notes in `.claude/skills/VENDORED.md`; session-start hooks copied to `.claude/superpowers-hooks/` (not wired into settings — optional).
