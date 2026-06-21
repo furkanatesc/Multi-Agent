@@ -43,3 +43,181 @@ def _stub_architect_agent(monkeypatch: pytest.MonkeyPatch) -> None:
             }
 
     monkeypatch.setattr("src.orchestrator.nodes.ArchitectAgent", _FakeArchitect)
+
+
+@pytest.fixture(autouse=True)
+def _stub_coder_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replace the graph's CoderAgent with a deterministic offline stub.
+
+    Mirrors a single node's contribution (one message, +1 iteration, +0.01 cost)
+    and emits a placeholder source file with the lint/test flags reset, matching
+    the real agent's routing into the inner loop. Tests that exercise the real,
+    tool-using ``CoderAgent`` do so directly (with a mock client) in
+    ``tests/test_coder.py``; this only patches the symbol used by the graph node.
+    """
+
+    class _FakeCoder:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            ...
+
+        def run(self, state: AgentState) -> dict[str, Any]:
+            return {
+                "messages": [AIMessage(content="[coder] stub module", name="coder")],
+                "source_code": {"src/App.stub.txt": "// stub generated module"},
+                "lint_passed": None,
+                "tests_passed": None,
+                "total_cost_usd": 0.01,
+                "iteration_count": 1,
+                "status": "inner_loop",
+                "next_agent": "inner_loop_check",
+            }
+
+    monkeypatch.setattr("src.orchestrator.nodes.CoderAgent", _FakeCoder)
+
+
+@pytest.fixture(autouse=True)
+def _stub_inner_loop_runner(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replace the graph's InnerLoopRunner with a deterministic offline stub.
+
+    Reports a passing lint/test run with no self-fix iterations, preserving the
+    incoming source map. A nominal 0.01 cost keeps the graph cost-accumulator
+    assertions consistent with the other stub nodes. The real, Docker-backed
+    ``InnerLoopRunner`` is exercised directly (with mocks) in
+    ``tests/test_inner_loop.py``.
+    """
+
+    class _FakeResult:
+        def __init__(self, files: dict[str, str]) -> None:
+            self.files = files
+            self.lint_passed = True
+            self.tests_passed = True
+            self.iterations = 0
+            self.cost = 0.01
+
+        @property
+        def passed(self) -> bool:
+            return self.lint_passed and self.tests_passed
+
+    class _FakeInnerLoop:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            ...
+
+        def run(self, files: dict[str, str], platform: Any) -> _FakeResult:
+            return _FakeResult(dict(files or {}))
+
+    monkeypatch.setattr("src.orchestrator.nodes.InnerLoopRunner", _FakeInnerLoop)
+
+
+@pytest.fixture(autouse=True)
+def _stub_security_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replace the graph's SecurityAgent with a deterministic offline stub.
+
+    Emits a passing score (90) with no critical findings, mirroring a single
+    node's contribution (one message, +1 iteration, +0.01 cost) so the graph's
+    accumulator and gate assertions stay deterministic. The real, LLM-backed
+    ``SecurityAgent`` is exercised directly (with a mock client) in
+    ``tests/test_security.py``; this only patches the symbol the node uses.
+    """
+
+    class _FakeSecurity:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            ...
+
+        def run(self, state: AgentState) -> dict[str, Any]:
+            return {
+                "messages": [
+                    AIMessage(content="[security] stub scan: score=90", name="security")
+                ],
+                "security_score": 90,
+                "security_critical": False,
+                "total_cost_usd": 0.01,
+                "iteration_count": 1,
+                "status": "security_scan",
+            }
+
+    monkeypatch.setattr("src.orchestrator.nodes.SecurityAgent", _FakeSecurity)
+
+
+@pytest.fixture(autouse=True)
+def _stub_test_generator_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replace the graph's TestGeneratorAgent with a deterministic offline stub.
+
+    Emits one generated test file with ``tests_passed=True``, mirroring a single
+    node's contribution (one message, +1 iteration, +0.01 cost) so the graph's
+    accumulators stay deterministic. The real, LLM-backed ``TestGeneratorAgent``
+    is exercised directly (with a mock client) in ``tests/test_test_generator.py``.
+    """
+
+    class _FakeTestGenerator:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            ...
+
+        def run(self, state: AgentState) -> dict[str, Any]:
+            return {
+                "messages": [
+                    AIMessage(
+                        content="[test_generator] stub tests generated",
+                        name="test_generator",
+                    )
+                ],
+                "source_code": {"src/App.test.stub.txt": "// stub test"},
+                "tests_passed": True,
+                "total_cost_usd": 0.01,
+                "iteration_count": 1,
+                "status": "test_generation",
+            }
+
+    monkeypatch.setattr(
+        "src.orchestrator.nodes.TestGeneratorAgent", _FakeTestGenerator
+    )
+
+
+@pytest.fixture(autouse=True)
+def _stub_reviewer_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replace the graph's ReviewerAgent with a deterministic offline stub.
+
+    Emits a PASS verdict and increments the outer-loop counter, mirroring a
+    single node's contribution (one message, +1 iteration, +0.01 cost) so the
+    graph's accumulator and outer-loop assertions stay deterministic. The real,
+    LLM-backed ``ReviewerAgent`` is exercised directly (with a mock client) in
+    ``tests/test_reviewer.py``; this only patches the symbol the node uses.
+    """
+
+    class _FakeReviewer:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            ...
+
+        def run(self, state: AgentState) -> dict[str, Any]:
+            outer = int(state.get("outer_loop_count", 0)) + 1
+            return {
+                "messages": [
+                    AIMessage(content="[reviewer] stub review: PASS", name="reviewer")
+                ],
+                "review_decision": "PASS",
+                "review_notes": "LGTM (stub review)",
+                "outer_loop_count": outer,
+                "total_cost_usd": 0.01,
+                "iteration_count": 1,
+                "status": "review",
+            }
+
+    monkeypatch.setattr("src.orchestrator.nodes.ReviewerAgent", _FakeReviewer)
+
+
+@pytest.fixture(autouse=True)
+def _disable_hitl_persistence(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the graph's HITL gates skip DB I/O (no Postgres in unit tests).
+
+    The gates still call ``interrupt``/resume as normal; only the best-effort
+    ``hitl_approvals`` persistence is turned off. That persistence is unit-tested
+    directly against an in-memory SQLite ORM in ``tests/test_hitl.py``.
+    """
+    from src.orchestrator import hitl as hitl_module
+
+    real_gate = hitl_module.HITLGate
+
+    def _factory(gate_type: str, **kwargs: Any) -> Any:
+        kwargs.setdefault("persist", False)
+        return real_gate(gate_type, **kwargs)
+
+    monkeypatch.setattr("src.orchestrator.nodes.HITLGate", _factory)

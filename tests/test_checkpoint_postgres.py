@@ -17,6 +17,7 @@ import uuid
 from typing import Any
 
 import pytest
+from langgraph.types import Command
 
 from src.orchestrator.graph import build_graph
 from src.orchestrator.state import UserRequest, create_initial_state
@@ -39,20 +40,25 @@ def test_postgres_checkpoint_persists_and_restores() -> None:
     thread_id = f"it-{uuid.uuid4()}"
     config = {"configurable": {"thread_id": thread_id}}
 
-    # 1) Run the graph to completion with a Postgres-backed checkpointer.
+    # 1) Run the graph with a Postgres-backed checkpointer. The HITL deploy gate
+    #    pauses the run via interrupt; resume it (approve) so it reaches the end.
     writer_graph = build_graph(checkpointer=_postgres_checkpointer_or_skip(setup=True))
     final = writer_graph.invoke(
         create_initial_state(UserRequest(prompt="Build a notes app"), project_id="it1"),
         config=config,
     )
+    while "__interrupt__" in final:
+        final = writer_graph.invoke(
+            Command(resume={"decision": "approve"}), config=config
+        )
     assert final["status"] == "completed"
-    assert final["iteration_count"] == 8
+    assert final["iteration_count"] == 9
 
     # 2) Restore via a brand-new graph + checkpointer (no shared in-memory state).
     reader_graph = build_graph(checkpointer=_postgres_checkpointer_or_skip(setup=False))
     snapshot = reader_graph.get_state(config)
 
     assert snapshot.values["status"] == "completed"
-    assert snapshot.values["iteration_count"] == 8
+    assert snapshot.values["iteration_count"] == 9
     assert snapshot.values["total_cost_usd"] == pytest.approx(0.08)
     assert "src/App.stub.txt" in snapshot.values["source_code"]

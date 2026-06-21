@@ -4,6 +4,9 @@ max_outer_loop_iterations: 5
 max_project_cost_usd: 10.0
 timeout_seconds: 30
 
+# Seconds a pending human-in-the-loop approval may wait before it is timed out.
+hitl_timeout_seconds: 3600
+
 # Token limits per agent invocation
 agent_token_limits:
   architect-model: 100000
