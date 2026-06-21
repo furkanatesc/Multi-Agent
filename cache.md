@@ -1,9 +1,9 @@
 # 🗂️ Session Cache — Resume Point
 
-> **Stopping point:** 2026-06-21. **PR#13 (S7 HITL Gates & Guardrails) MERGED → `develop` (`560477e`). SPRINT 7 COMPLETE.** CI green. No open PRs/branches; working tree clean. PR#11 + PR#12 also merged.
-> ⏭️ **Resume next session:** decide between ① **cut M2 (`v0.5-beta`)** — `develop → main` merge + tag (overdue since S6 end), then ② **Sprint 8 — Dashboard UI** (React 19 + Vite + Zustand; SQLGen cinematic dark aesthetic — see memory `dashboard-design-direction`). Recommend cutting M2 first since the core engine (S1–7) is now feature-complete.
-> ℹ️ **M2 (`v0.5-beta`) tag** still pending — plan puts it at S6 end; everything needed is on `develop` now.
-> 📌 **PR#13 follow-ups (not blockers):** auto_merge is a hook only — full PR-number plumbing Reviewer→state is future; prod must inject `PostgresSaver` (API/graph default in-memory); WebSocket HITL notify scope-cut.
+> **Stopping point:** 2026-06-21. **Sprints 1–7 COMPLETE + Milestone M2 cut.** `v0.5-beta` tagged on `main` (`f6b5414`, merge of `develop`) + GitHub Release published. `develop` = `main` tree-identical. No open PRs/branches; working tree clean. CI green.
+> ⏭️ **Resume next session: Sprint 8 — Dashboard UI** (frontend over the FastAPI: start runs via `POST /api/projects`, watch progress, approve/reject HITL gates via `POST /api/hitl/{id}/approve`, view metrics/ADR/code/security/review). Stack per plan: **React 19 + Vite + Zustand**; **SQLGen cinematic dark aesthetic** (see memory `dashboard-design-direction`). ⚠️ **Brainstorm scope + confirm React-vs-Vue first** (memory flags it undecided; plan says React).
+> ℹ️ **Milestones:** M1 `v0.1-alpha` (Core Engine, S1–3), **M2 `v0.5-beta` (Full Autonomous Pipeline, S1–7) — DONE.**
+> 📌 **Carry-forward (not blockers):** PR#13 auto_merge is a hook only (full PR-number plumbing Reviewer→state is future); prod must inject `PostgresSaver` (API/graph default in-memory); WebSocket HITL notify scope-cut. Live-run still blocked by placeholder `.env` keys.
 > This file is the fast-resume handoff: where we are, environment state, decisions, and the exact next steps.
 >
 > 🔑 **Live-run blocker (found today):** `python -m src` runs but the `.env` `*_API_KEY`s are **placeholders/invalid** — Gemini returned `API_KEY_INVALID`, Anthropic/OpenAI fallbacks also failed auth. Router + fallback chain work; need ≥1 **valid** key (any provider — fallback covers the rest). `LANGSMITH_TRACING=true` + bad key spams harmless `403`; set it `false` to quiet.
