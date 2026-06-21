@@ -1,9 +1,9 @@
 # 🗂️ Session Cache — Resume Point
 
-> **Stopping point:** 2026-06-21. **PR#13 (S7 HITL Gates & Guardrails) OPENED → awaiting review/merge into `develop`.** Branch `feature/s7-hitl-guardrails` (`a4ead31`) pushed; PR: https://github.com/furkanatesc/Multi-Agent/pull/13. PR#11 + PR#12 already merged (`8d288f6`).
-> ⏭️ **Resume next session:** ① confirm CI green + **merge PR#13** (squash, delete branch). ② **Sprint 7 is then COMPLETE** → decide M2 (`v0.5-beta`) cut (`develop → main` + tag) now or move to **Sprint 8 — Dashboard UI** (React 19 + Vite + Zustand; SQLGen cinematic aesthetic — see memory `dashboard-design-direction`).
-> ℹ️ **M2 (`v0.5-beta`) tag** still pending — plan puts it at S6 end; can cut from `develop` anytime (decide now that S7 is done).
-> 📌 **PR#13 follow-ups (not blockers):** auto_merge is a hook only — full PR-number plumbing Reviewer→state is future; prod must inject `PostgresSaver` (default in-memory); WebSocket notify scope-cut.
+> **Stopping point:** 2026-06-21. **PR#13 (S7 HITL Gates & Guardrails) MERGED → `develop` (`560477e`). SPRINT 7 COMPLETE.** CI green. No open PRs/branches; working tree clean. PR#11 + PR#12 also merged.
+> ⏭️ **Resume next session:** decide between ① **cut M2 (`v0.5-beta`)** — `develop → main` merge + tag (overdue since S6 end), then ② **Sprint 8 — Dashboard UI** (React 19 + Vite + Zustand; SQLGen cinematic dark aesthetic — see memory `dashboard-design-direction`). Recommend cutting M2 first since the core engine (S1–7) is now feature-complete.
+> ℹ️ **M2 (`v0.5-beta`) tag** still pending — plan puts it at S6 end; everything needed is on `develop` now.
+> 📌 **PR#13 follow-ups (not blockers):** auto_merge is a hook only — full PR-number plumbing Reviewer→state is future; prod must inject `PostgresSaver` (API/graph default in-memory); WebSocket HITL notify scope-cut.
 > This file is the fast-resume handoff: where we are, environment state, decisions, and the exact next steps.
 >
 > 🔑 **Live-run blocker (found today):** `python -m src` runs but the `.env` `*_API_KEY`s are **placeholders/invalid** — Gemini returned `API_KEY_INVALID`, Anthropic/OpenAI fallbacks also failed auth. Router + fallback chain work; need ≥1 **valid** key (any provider — fallback covers the rest). `LANGSMITH_TRACING=true` + bad key spams harmless `403`; set it `false` to quiet.
@@ -27,10 +27,10 @@
 | Fix — LiteLLM provider prefix | PR#10 | ✅ merged | `anthropic/` prefix on Claude routes + config-prefix regression guard |
 | S6 — Reviewer & GitHub | PR#11 | ✅ merged | `ReviewerAgent` (deterministic PASS/FAIL) + `GitHubClient` (PyGithub facade) |
 | S7 — Observability (lean) | PR#12 | ✅ merged | Prometheus `/metrics` + LangSmith tracer + **FastAPI skeleton** (`src/api`, `src/observability`) |
-| S7 — HITL Gates & Guardrails | PR#13 | 🟡 open | `GuardrailsEngine` + `HITLGate` (security+deploy interrupt/resume) + API run-lifecycle endpoints + deployer auto_merge hook |
+| S7 — HITL Gates & Guardrails | PR#13 | ✅ merged | `GuardrailsEngine` + `HITLGate` (security+deploy interrupt/resume) + API run-lifecycle endpoints + deployer auto_merge hook |
 
-- **Tests:** **223 passing**, 1 skipped (Postgres integration). **`mypy --strict`:** clean (49 files). **`ruff`:** clean (new code; pre-existing E501s in `state.py`/`__main__.py`/`conftest.py` untouched).
-- **Branches:** `main` (= `v0.1-alpha`), `develop` (= `8d288f6`, includes PR#11 + PR#12), **`feature/s7-hitl-guardrails` (= `a4ead31`, PR#13 open).**
+- **Tests:** **223 passing**, 1 skipped (Postgres integration — passes on CI where Postgres is up). **`mypy --strict`:** clean (49 files). **`ruff`:** clean (new code; pre-existing E501s in `state.py`/`__main__.py`/`conftest.py` untouched).
+- **Branches:** `main` (= `v0.1-alpha`), `develop` (= `560477e`, includes PR#11–PR#13). **No open feature branches.**
 - ⚠️ **Local-only:** `pytest` exits 255 with a LangSmith `RuntimeError: can't create new thread at interpreter shutdown` — because local `.env` has `LANGSMITH_TRACING=true`. **All tests pass**; CI (no `.env`, flag defaults false) is unaffected. Set `LANGSMITH_TRACING=false` locally to silence.
 
 ---
