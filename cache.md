@@ -1,8 +1,9 @@
 # 🗂️ Session Cache — Resume Point
 
-> **Stopping point:** 2026-06-21 (eve — resume tomorrow). **PR#11 (S6 Reviewer) + PR#12 (S7 observability) both MERGED → `develop` (`8d288f6`).** No open PRs/branches. Working tree clean.
-> ⏭️ **Resume next session with: build PR#13 — HITL Gates & Guardrails** (`feature/s7-hitl-guardrails`). Full task list in the Sprint 7 section below. Decisions already locked: deploy-approval + security gate (not all 4); needs checkpointer + `thread_id` wiring for `interrupt_before`.
-> ℹ️ **M2 (`v0.5-beta`) tag** still pending — plan puts it at S6 end; can cut from `develop` anytime (decide after S7 or now).
+> **Stopping point:** 2026-06-21. **PR#13 (S7 HITL Gates & Guardrails) OPENED → awaiting review/merge into `develop`.** Branch `feature/s7-hitl-guardrails` (`a4ead31`) pushed; PR: https://github.com/furkanatesc/Multi-Agent/pull/13. PR#11 + PR#12 already merged (`8d288f6`).
+> ⏭️ **Resume next session:** ① confirm CI green + **merge PR#13** (squash, delete branch). ② **Sprint 7 is then COMPLETE** → decide M2 (`v0.5-beta`) cut (`develop → main` + tag) now or move to **Sprint 8 — Dashboard UI** (React 19 + Vite + Zustand; SQLGen cinematic aesthetic — see memory `dashboard-design-direction`).
+> ℹ️ **M2 (`v0.5-beta`) tag** still pending — plan puts it at S6 end; can cut from `develop` anytime (decide now that S7 is done).
+> 📌 **PR#13 follow-ups (not blockers):** auto_merge is a hook only — full PR-number plumbing Reviewer→state is future; prod must inject `PostgresSaver` (default in-memory); WebSocket notify scope-cut.
 > This file is the fast-resume handoff: where we are, environment state, decisions, and the exact next steps.
 >
 > 🔑 **Live-run blocker (found today):** `python -m src` runs but the `.env` `*_API_KEY`s are **placeholders/invalid** — Gemini returned `API_KEY_INVALID`, Anthropic/OpenAI fallbacks also failed auth. Router + fallback chain work; need ≥1 **valid** key (any provider — fallback covers the rest). `LANGSMITH_TRACING=true` + bad key spams harmless `403`; set it `false` to quiet.
@@ -26,9 +27,10 @@
 | Fix — LiteLLM provider prefix | PR#10 | ✅ merged | `anthropic/` prefix on Claude routes + config-prefix regression guard |
 | S6 — Reviewer & GitHub | PR#11 | ✅ merged | `ReviewerAgent` (deterministic PASS/FAIL) + `GitHubClient` (PyGithub facade) |
 | S7 — Observability (lean) | PR#12 | ✅ merged | Prometheus `/metrics` + LangSmith tracer + **FastAPI skeleton** (`src/api`, `src/observability`) |
+| S7 — HITL Gates & Guardrails | PR#13 | 🟡 open | `GuardrailsEngine` + `HITLGate` (security+deploy interrupt/resume) + API run-lifecycle endpoints + deployer auto_merge hook |
 
-- **Tests:** **186 passing**, 1 skipped (Postgres integration). **`mypy --strict`:** clean (66 files). **`ruff`:** clean (new/touched files).
-- **Branches:** `main` (= `v0.1-alpha`), `develop` (= `8d288f6`, includes PR#11 + PR#12). **No open feature branches.**
+- **Tests:** **223 passing**, 1 skipped (Postgres integration). **`mypy --strict`:** clean (49 files). **`ruff`:** clean (new code; pre-existing E501s in `state.py`/`__main__.py`/`conftest.py` untouched).
+- **Branches:** `main` (= `v0.1-alpha`), `develop` (= `8d288f6`, includes PR#11 + PR#12), **`feature/s7-hitl-guardrails` (= `a4ead31`, PR#13 open).**
 - ⚠️ **Local-only:** `pytest` exits 255 with a LangSmith `RuntimeError: can't create new thread at interpreter shutdown` — because local `.env` has `LANGSMITH_TRACING=true`. **All tests pass**; CI (no `.env`, flag defaults false) is unaffected. Set `LANGSMITH_TRACING=false` locally to silence.
 
 ---
@@ -85,14 +87,15 @@
 ### ✅ PR#12 — Observability (lean) — MERGED (`8d288f6`)
 - `src/observability/metrics.py` (Prometheus, dedicated registry), `langsmith_tracer.py` (env-driven, opt-in). `src/api/main.py` FastAPI skeleton (`/health`, `/metrics`). LiteLLM `completion()` + nodes instrumented. Tests: metrics/api/tracer. 186 pass.
 
-### ▶️ NEXT: PR#13 — HITL Gates & Guardrails (`feature/s7-hitl-guardrails`)
-- `src/orchestrator/hitl.py` — `HITLGate` (deploy-approval + security-critical). Pending/approve/reject + timeout.
-- `src/orchestrator/guardrails.py` — `GuardrailsEngine` (cost/iteration/token caps; consolidates `edges.cost_check`).
-- `src/orchestrator/graph.py` — **`interrupt_before`** the deploy gate; needs a **checkpointer + per-project `thread_id`** so the graph can pause/resume (the CLI runner currently passes NO checkpointer — wire `InMemorySaver` for CLI/tests, `PostgresSaver` for prod).
-- `src/api/main.py` — add `POST /api/projects` (start run, returns interrupted state) + `POST /api/hitl/{id}/approve` (resume via `Command(resume=...)`); optional WebSocket notify (scope-cut candidate).
-- Persist HITL requests to the **`hitl_approvals`** table (already migrated: gate_type ∈ architecture/security/deploy/budget; status pending/approved/rejected/timeout).
-- Wire `deployer` to optionally call `GitHubClient.auto_merge` **after** deploy approval (auto_merge currently OFF by default from PR#11).
-- Tests: `test_hitl.py`, `test_guardrails.py` (approve/reject/timeout, cost/iteration caps).
+### ✅ PR#13 — HITL Gates & Guardrails — OPEN (`feature/s7-hitl-guardrails`, `a4ead31`)
+- `src/orchestrator/guardrails.py` — **`GuardrailsEngine`**: cost/inner/outer/token caps + `hitl_timeout_seconds`. `edges.py` delegates (behavior unchanged).
+- `src/orchestrator/hitl.py` — **`HITLGate("security"|"deploy")`** on LangGraph **dynamic `interrupt()`** (NOT `interrupt_before` — chose dynamic so the decision flows back via `Command(resume=...)`). Idempotent find-or-create persist to `hitl_approvals` (graceful when DB down); `interpret()` defaults **reject** on ambiguous; `expire_pending`/`is_expired` timeout.
+- `src/orchestrator/graph.py` — rewired: `hitl_gate -(hitl_route)-> test_generator|coder`; `reviewer` approve → `deploy_gate` → `deployer|END`. Graph now **requires a checkpointer** (InMemory CLI/tests, Postgres prod). `state.py` += `hitl_decision`/`pr_number`/`repo`; `edges.py` += `hitl_route`.
+- `src/api/main.py` — `POST /api/projects` (start; returns paused state + gate payload) + `POST /api/hitl/{project_id}/approve` (resume; 404 unknown, 409 nothing pending). `{id}` = project_id = thread_id. `create_app(checkpointer=...)` defaults in-memory.
+- `deployer` — best-effort `GitHubClient.auto_merge(repo, pr_number)` after deploy approval (no-op unless repo+pr_number+token; graceful). **Full PR-number plumbing Reviewer→state is a future item.**
+- `src/__main__.py` — CLI uses InMemorySaver + **auto-approves** gates (one-shot demo). `config/guardrails.yaml` += `hitl_timeout_seconds: 3600`.
+- `observability/metrics.py` — `hitl_requests_total{gate}` + `hitl_resolutions_total{gate,decision}`.
+- Tests: `test_guardrails.py`, `test_hitl.py` (interpret/payload/request/idempotent-persist/resolution/timeout via in-memory **SQLite** ORM/graceful-DB-down) + HITL flow/routing/auto-merge/API-lifecycle in `test_orchestrator.py`/`test_api.py`/`test_cli.py`/`test_metrics.py`. **223 pass**, 1 skip; mypy strict clean; ruff clean (new code).
 
 ### M2 milestone
 Plan puts `v0.5-beta` (`develop → main` + tag) at S6 end — still uncut; decide now or after S7.

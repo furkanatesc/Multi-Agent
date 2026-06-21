@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from src.__main__ import EnvReport, _parse_args, check_environment, main
+from src.__main__ import EnvReport, _parse_args, check_environment, main, run
 from src.integrations.docker_runner import DockerError
-
 
 # --------------------------------------------------------------------------- #
 # argument parsing
@@ -72,6 +71,22 @@ def test_check_environment_detects_docker_down(
     report = check_environment()
     assert report.has_llm_key is True
     assert report.docker_up is False
+
+
+# --------------------------------------------------------------------------- #
+# main() guard: exits non-zero (without running the pipeline) when no key
+# --------------------------------------------------------------------------- #
+
+
+def test_run_drives_through_hitl_gates_to_completion() -> None:
+    """run() auto-approves the HITL gates (CLI demo) and completes the pipeline.
+
+    Uses the autouse offline agent stubs (conftest.py); the deploy gate would
+    otherwise pause the graph, so this verifies run()'s checkpointer wiring and
+    interrupt-resume loop.
+    """
+    response = run("Build a todo app")
+    assert response.status == "completed"
 
 
 # --------------------------------------------------------------------------- #

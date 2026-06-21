@@ -6,27 +6,18 @@ nodes (or ``END``). Keeping the decision logic here — separate from the nodes 
 makes the routing independently unit-testable with hand-built mock states
 (see ``tests/test_orchestrator.py``).
 
-Thresholds come from ``config/guardrails.yaml`` via ``settings.guardrails`` so
-the limits stay configuration-driven (no magic numbers in the flow).
+Iteration/budget thresholds are owned by :class:`GuardrailsEngine`
+(``guardrails.py``); these routers delegate to it so the limits stay
+configuration-driven (no magic numbers in the flow).
 """
 
 from __future__ import annotations
 
-from typing import Any
-
-from src.core.config import settings
+from src.orchestrator.guardrails import GuardrailsEngine
 from src.orchestrator.state import AgentState
 
-# Default thresholds, used when guardrails.yaml omits a key.
-_DEFAULT_MAX_INNER = 3
-_DEFAULT_MAX_OUTER = 5
-_DEFAULT_MAX_COST = 10.0
+# Minimum acceptable security posture score (gate-local, not an iteration cap).
 _MIN_SECURITY_SCORE = 80
-
-
-def _guardrail(key: str, default: Any) -> Any:
-    """Read a single guardrail value, falling back to ``default``."""
-    return settings.guardrails.get(key, default)
 
 
 def cost_check(state: AgentState) -> str:
@@ -35,9 +26,7 @@ def cost_check(state: AgentState) -> str:
     Returns ``"halt"`` when ``total_cost_usd`` exceeds the configured project
     budget, otherwise ``"continue"``.
     """
-    budget = float(_guardrail("max_project_cost_usd", _DEFAULT_MAX_COST))
-    spent = float(state.get("total_cost_usd", 0.0) or 0.0)
-    return "halt" if spent >= budget else "continue"
+    return "halt" if GuardrailsEngine().budget_exceeded(state) else "continue"
 
 
 def should_continue_inner_loop(state: AgentState) -> str:
@@ -48,19 +37,17 @@ def should_continue_inner_loop(state: AgentState) -> str:
     * ``"fix"`` — there is still a failure and budget of iterations remains;
       route back to the Coder for another self-fix attempt.
     """
-    max_inner = int(_guardrail("max_inner_loop_iterations", _DEFAULT_MAX_INNER))
     passed = bool(state.get("lint_passed")) and bool(state.get("tests_passed"))
     if passed:
         return "proceed"
-    if int(state.get("inner_loop_count", 0)) >= max_inner:
+    if GuardrailsEngine().inner_loop_exhausted(state):
         return "proceed"
     return "fix"
 
 
 def should_escalate(state: AgentState) -> bool:
     """Return True when the outer (review->coder) loop has exhausted its budget."""
-    max_outer = int(_guardrail("max_outer_loop_iterations", _DEFAULT_MAX_OUTER))
-    return int(state.get("outer_loop_count", 0)) >= max_outer
+    return GuardrailsEngine().outer_loop_exhausted(state)
 
 
 def security_gate(state: AgentState) -> str:
@@ -76,6 +63,17 @@ def security_gate(state: AgentState) -> str:
     if score is not None and int(score) < _MIN_SECURITY_SCORE:
         return "fix"
     return "proceed"
+
+
+def hitl_route(state: AgentState) -> str:
+    """Route on the most recent HITL gate verdict.
+
+    Returns ``"approve"`` only when the human explicitly approved; any other
+    value (including a missing decision) routes to ``"reject"`` so a gate never
+    proceeds on ambiguous state. Both the security and deploy gates share this
+    router (``graph.py`` maps the two outcomes to gate-specific targets).
+    """
+    return "approve" if state.get("hitl_decision") == "approve" else "reject"
 
 
 def review_decision(state: AgentState) -> str:
