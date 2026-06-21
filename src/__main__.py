@@ -24,9 +24,13 @@ import argparse
 import sys
 from dataclasses import dataclass
 from typing import Optional, Sequence, get_args
+from uuid import uuid4
+
+from langgraph.types import Command
 
 from src.core.config import settings
 from src.core.logging import logger
+from src.db.session import get_memory_checkpointer
 from src.integrations.docker_runner import DockerError, DockerRunner
 from src.orchestrator.graph import build_graph
 from src.orchestrator.state import (
@@ -81,6 +85,12 @@ def check_environment() -> EnvReport:
 def run(prompt: str, platform: Optional[Platform] = None) -> AgentResponse:
     """Invoke the full pipeline once and return the boundary response.
 
+    The pipeline now contains HITL gates that pause the graph via ``interrupt``;
+    this developer/demo runner **auto-approves** them so a single command still
+    runs end-to-end. (The interactive approve/reject flow lives in the API.) A
+    checkpointer is required for the pause/resume machinery — an in-memory saver
+    is used here.
+
     Args:
         prompt: The natural-language app idea.
         platform: Optional target platform hint.
@@ -88,11 +98,18 @@ def run(prompt: str, platform: Optional[Platform] = None) -> AgentResponse:
     Returns:
         The validated :class:`AgentResponse` snapshot of the final state.
     """
-    graph = build_graph()
+    graph = build_graph(checkpointer=get_memory_checkpointer())
+    config = {"configurable": {"thread_id": str(uuid4())}}
     initial = create_initial_state(UserRequest(prompt=prompt, platform=platform))
     logger.info("Pipeline run starting", platform=platform)
-    final = graph.invoke(initial)
-    return build_response(final)
+
+    result = graph.invoke(initial, config=config)
+    while "__interrupt__" in result:
+        gate = result["__interrupt__"][0].value.get("gate_type")
+        logger.info("HITL gate auto-approved (CLI demo)", gate=gate)
+        result = graph.invoke(Command(resume={"decision": "approve"}), config=config)
+
+    return build_response(result)
 
 
 def _parse_args(argv: Sequence[str]) -> argparse.Namespace:

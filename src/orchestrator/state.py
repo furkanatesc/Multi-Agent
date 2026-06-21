@@ -46,6 +46,9 @@ WorkflowStatus = Literal[
 ReviewDecision = Literal["PASS", "FAIL"]
 """Outcome emitted by the Reviewer agent."""
 
+HITLDecision = Literal["approve", "reject"]
+"""Human verdict recorded by a HITL gate node (drives ``edges.hitl_route``)."""
+
 # Files map: relative path -> file content.
 SourceCode = dict[str, str]
 
@@ -120,6 +123,15 @@ class AgentState(TypedDict, total=False):
 
     review_decision: Optional[ReviewDecision]
     """Latest Reviewer verdict, ``PASS`` or ``FAIL``."""
+
+    hitl_decision: Optional[HITLDecision]
+    """Latest human verdict from a HITL gate; routed on by ``edges.hitl_route``."""
+
+    pr_number: Optional[int]
+    """Pull-request number for the build, when one exists (enables auto-merge)."""
+
+    repo: Optional[str]
+    """GitHub ``owner/name`` slug for the build's PR (enables auto-merge)."""
 
     security_score: Optional[int]
     """Security posture score 0-100 from the Security agent."""
@@ -217,6 +229,9 @@ def create_initial_state(
         architecture_spec=None,
         review_notes=None,
         review_decision=None,
+        hitl_decision=None,
+        pr_number=None,
+        repo=None,
         security_score=None,
         security_critical=False,
         lint_passed=None,

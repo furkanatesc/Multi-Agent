@@ -70,6 +70,20 @@ ci_build_duration_seconds = Histogram(
     registry=REGISTRY,
 )
 
+hitl_requests_total = Counter(
+    "hitl_requests_total",
+    "Human-in-the-loop gate requests, partitioned by gate (security/deploy).",
+    labelnames=("gate",),
+    registry=REGISTRY,
+)
+
+hitl_resolutions_total = Counter(
+    "hitl_resolutions_total",
+    "HITL gate resolutions, partitioned by gate and decision (approve/reject).",
+    labelnames=("gate", "decision"),
+    registry=REGISTRY,
+)
+
 
 # --------------------------------------------------------------------------- #
 # Recording helpers (the instrumentation surface used elsewhere)
@@ -112,6 +126,16 @@ def record_review_rejection() -> None:
 def observe_ci_build(seconds: float) -> None:
     """Observe the duration of an inner-loop / CI build."""
     ci_build_duration_seconds.observe(seconds)
+
+
+def record_hitl_request(gate: str) -> None:
+    """Record that a HITL gate (``security``/``deploy``) requested approval."""
+    hitl_requests_total.labels(gate=gate).inc()
+
+
+def record_hitl_resolution(gate: str, decision: str) -> None:
+    """Record a HITL gate resolution (``approve``/``reject``) for ``gate``."""
+    hitl_resolutions_total.labels(gate=gate, decision=decision).inc()
 
 
 def render() -> tuple[bytes, str]:

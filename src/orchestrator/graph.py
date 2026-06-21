@@ -11,9 +11,15 @@ Flow::
     architect -> coder -> inner_loop_check
     inner_loop_check -(should_continue_inner_loop)-> coder | security_scan
     security_scan -(security_gate)-> coder | hitl_gate | test_generator
-    hitl_gate -> test_generator -> reviewer
-    reviewer -(review_decision)-> deployer | coder | END
+    hitl_gate -(hitl_route)-> test_generator | coder       # security HITL
+    test_generator -> reviewer
+    reviewer -(review_decision)-> deploy_gate | coder | END
+    deploy_gate -(hitl_route)-> deployer | END             # deploy HITL
     deployer -> END
+
+The two HITL gates pause the run via a dynamic ``interrupt`` inside the node;
+resuming with ``Command(resume=...)`` requires the graph to be compiled with a
+checkpointer (``InMemorySaver`` for CLI/tests, ``PostgresSaver`` for prod).
 """
 
 from __future__ import annotations
@@ -49,6 +55,7 @@ def build_graph(checkpointer: Optional[Any] = None) -> Any:
     builder.add_node("hitl_gate", nodes.hitl_gate)
     builder.add_node("test_generator", nodes.test_generator)
     builder.add_node("reviewer", nodes.reviewer)
+    builder.add_node("deploy_gate", nodes.deploy_gate)
     builder.add_node("deployer", nodes.deployer)
 
     # --- Edges ------------------------------------------------------------- #
@@ -78,14 +85,27 @@ def build_graph(checkpointer: Optional[Any] = None) -> Any:
         {"block_hitl": "hitl_gate", "fix": "coder", "proceed": "test_generator"},
     )
 
-    builder.add_edge("hitl_gate", "test_generator")
+    # Security HITL gate: human approves (proceed) or rejects (back to coder).
+    builder.add_conditional_edges(
+        "hitl_gate",
+        edges.hitl_route,
+        {"approve": "test_generator", "reject": "coder"},
+    )
+
     builder.add_edge("test_generator", "reviewer")
 
-    # Outer review loop: ship, retry via coder, or escalate and stop.
+    # Outer review loop: approved builds go to the deploy gate; retry or escalate.
     builder.add_conditional_edges(
         "reviewer",
         edges.review_decision,
-        {"approve": "deployer", "reject": "coder", "escalate": END},
+        {"approve": "deploy_gate", "reject": "coder", "escalate": END},
+    )
+
+    # Deploy HITL gate: human approves (deploy) or rejects (abort the run).
+    builder.add_conditional_edges(
+        "deploy_gate",
+        edges.hitl_route,
+        {"approve": "deployer", "reject": END},
     )
 
     builder.add_edge("deployer", END)

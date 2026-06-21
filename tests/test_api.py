@@ -45,3 +45,63 @@ def test_metrics_endpoint_includes_all_collectors() -> None:
         "ci_build_duration_seconds",
     ):
         assert name in body
+
+
+# --------------------------------------------------------------------------- #
+# HITL run lifecycle: POST /api/projects + POST /api/hitl/{id}/approve
+#
+# The autouse stub fixtures (conftest.py) make the graph run offline, and a
+# single TestClient is reused per test so both requests share the app's
+# in-memory checkpointer (same thread_id state).
+# --------------------------------------------------------------------------- #
+
+
+def test_start_project_pauses_at_deploy_gate() -> None:
+    client = _client()
+    resp = client.post("/api/projects", json={"prompt": "Build a todo app"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["project_id"]
+    assert body["awaiting_hitl"] is True
+    assert body["hitl"]["gate_type"] == "deploy"
+    assert body["status"] != "completed"
+
+
+def test_approve_deploy_resumes_to_completion() -> None:
+    client = _client()
+    start = client.post("/api/projects", json={"prompt": "app"}).json()
+    pid = start["project_id"]
+
+    resp = client.post(f"/api/hitl/{pid}/approve", json={"decision": "approve"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["awaiting_hitl"] is False
+    assert body["status"] == "completed"
+
+
+def test_reject_deploy_aborts_run() -> None:
+    client = _client()
+    pid = client.post("/api/projects", json={"prompt": "app"}).json()["project_id"]
+
+    body = client.post(
+        f"/api/hitl/{pid}/approve", json={"decision": "reject", "feedback": "no"}
+    ).json()
+    assert body["awaiting_hitl"] is False
+    assert body["status"] == "failed"
+
+
+def test_resolve_unknown_project_returns_404() -> None:
+    resp = _client().post(
+        "/api/hitl/does-not-exist/approve", json={"decision": "approve"}
+    )
+    assert resp.status_code == 404
+
+
+def test_resolve_when_not_awaiting_returns_409() -> None:
+    client = _client()
+    pid = client.post("/api/projects", json={"prompt": "app"}).json()["project_id"]
+    # First approval completes the run.
+    client.post(f"/api/hitl/{pid}/approve", json={"decision": "approve"})
+    # Second approval has nothing to resume.
+    resp = client.post(f"/api/hitl/{pid}/approve", json={"decision": "approve"})
+    assert resp.status_code == 409

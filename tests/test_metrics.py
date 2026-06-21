@@ -72,6 +72,30 @@ def test_record_review_rejection() -> None:
     assert _sample("review_rejections_total") == before + 1
 
 
+def test_record_hitl_request_and_resolution() -> None:
+    before_req = _sample("hitl_requests_total", {"gate": "deploy"}) or 0.0
+    before_appr = (
+        _sample("hitl_resolutions_total", {"gate": "deploy", "decision": "approve"})
+        or 0.0
+    )
+    before_rej = (
+        _sample("hitl_resolutions_total", {"gate": "security", "decision": "reject"})
+        or 0.0
+    )
+    metrics.record_hitl_request("deploy")
+    metrics.record_hitl_resolution("deploy", "approve")
+    metrics.record_hitl_resolution("security", "reject")
+    assert _sample("hitl_requests_total", {"gate": "deploy"}) == before_req + 1
+    assert (
+        _sample("hitl_resolutions_total", {"gate": "deploy", "decision": "approve"})
+        == before_appr + 1
+    )
+    assert (
+        _sample("hitl_resolutions_total", {"gate": "security", "decision": "reject"})
+        == before_rej + 1
+    )
+
+
 def test_observe_ci_build_records_histogram() -> None:
     metrics.observe_ci_build(2.5)
     assert (_sample("ci_build_duration_seconds_count") or 0.0) >= 1

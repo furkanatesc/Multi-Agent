@@ -202,3 +202,22 @@ def _stub_reviewer_agent(monkeypatch: pytest.MonkeyPatch) -> None:
             }
 
     monkeypatch.setattr("src.orchestrator.nodes.ReviewerAgent", _FakeReviewer)
+
+
+@pytest.fixture(autouse=True)
+def _disable_hitl_persistence(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the graph's HITL gates skip DB I/O (no Postgres in unit tests).
+
+    The gates still call ``interrupt``/resume as normal; only the best-effort
+    ``hitl_approvals`` persistence is turned off. That persistence is unit-tested
+    directly against an in-memory SQLite ORM in ``tests/test_hitl.py``.
+    """
+    from src.orchestrator import hitl as hitl_module
+
+    real_gate = hitl_module.HITLGate
+
+    def _factory(gate_type: str, **kwargs: Any) -> Any:
+        kwargs.setdefault("persist", False)
+        return real_gate(gate_type, **kwargs)
+
+    monkeypatch.setattr("src.orchestrator.nodes.HITLGate", _factory)
