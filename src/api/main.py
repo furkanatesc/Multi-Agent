@@ -26,9 +26,11 @@ from typing import Any, Literal, Optional
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Response
+from fastapi.middleware.cors import CORSMiddleware
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
+from src.core.config import settings
 from src.db.session import get_memory_checkpointer
 from src.observability import metrics
 from src.observability.langsmith_tracer import configure_tracing, is_tracing_enabled
@@ -87,6 +89,14 @@ def create_app(checkpointer: Optional[Any] = None) -> FastAPI:
         title="Multi-Agent Mobile App Development System",
         description="Autonomous multi-agent pipeline API.",
         version="0.5.0",
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     @app.get("/health", tags=["system"])

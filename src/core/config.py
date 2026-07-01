@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     REDIS_URL: str = Field(default="redis://localhost:6379/0")
 
     GITHUB_TOKEN: str = Field(default="")
+    CORS_ORIGINS: str = Field(
+        default="http://localhost:5173,http://127.0.0.1:5173",
+        description="Comma-separated list of allowed frontend origins for CORS.",
+    )
     DOCKER_HOST: str = Field(default="npipe:////./pipe/docker_engine")
 
     # Configuration base paths

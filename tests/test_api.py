@@ -105,3 +105,8 @@ def test_resolve_when_not_awaiting_returns_409() -> None:
     # Second approval has nothing to resume.
     resp = client.post(f"/api/hitl/{pid}/approve", json={"decision": "approve"})
     assert resp.status_code == 409
+
+
+def test_cors_headers_present() -> None:
+    resp = _client().get("/health", headers={"Origin": "http://localhost:5173"})
+    assert resp.headers.get("access-control-allow-origin") == "http://localhost:5173"
