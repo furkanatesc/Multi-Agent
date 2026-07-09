@@ -87,7 +87,10 @@ async def _drive_stream(
     """Run ``graph.stream`` in a thread; append converted events to the record.
 
     Sets ``awaiting_hitl`` when the segment ends on an interrupt, otherwise marks
-    the record closed (completed/failed).
+    the record closed (completed/failed). If the worker thread raises (e.g. a
+    real-mode LLM/Docker/auth error), the run is still resolved to a terminal
+    ``failed`` state with a ``completed`` event, so no WebSocket observer blocked
+    on ``record.condition`` hangs forever.
     """
     loop = asyncio.get_running_loop()
     saw_interrupt: dict[str, Any] = {}
@@ -102,7 +105,15 @@ async def _drive_stream(
                     saw_interrupt["payload"] = event["payload"]
                 _emit(manager.append(record, event))
 
-    await asyncio.to_thread(_worker)
+    try:
+        await asyncio.to_thread(_worker)
+    except Exception as exc:  # noqa: BLE001 - any stream failure must resolve the run
+        await manager.set_awaiting(record, None, "failed")
+        await manager.append(
+            record, {"type": "completed", "status": "failed", "error": str(exc)}
+        )
+        await manager.mark_closed(record)
+        return
 
     if saw_interrupt:
         await manager.set_awaiting(
