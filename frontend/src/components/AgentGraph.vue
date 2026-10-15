@@ -71,7 +71,7 @@ onBeforeUnmount(() => {
       <h2 class="text-sm uppercase tracking-widest text-muted">Agent Graph</h2>
       <span v-if="store.runStatus" class="text-xs text-muted">status: {{ store.runStatus }}</span>
     </div>
-    <svg viewBox="0 0 1000 360" class="w-full" role="img" aria-label="Pipeline agent graph">
+    <svg viewBox="0 50 1000 260" class="w-full max-h-[300px]" role="img" aria-label="Pipeline agent graph">
       <line
         v-for="([a, b], i) in EDGES"
         :key="i"
