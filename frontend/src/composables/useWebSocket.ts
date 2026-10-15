@@ -2,9 +2,10 @@ import type { StreamEvent } from '../types'
 
 /**
  * Open a stream to a run and invoke `onEvent` per message. Reconnects on drop
- * until a terminal `completed` event is seen. The backend replays the run's
- * history from index 0 on every connection, so `onReplay` is called before each
- * reconnect to let the consumer reset derived state (no double-counting).
+ * (exponential backoff, max 10s) until a terminal `completed` event is seen.
+ * The backend replays the run's history from index 0 on every connection, so
+ * `onReplay` is called when a reconnect opens, letting the consumer reset
+ * derived state (no double-counting).
  */
 export function connectStream(
   projectId: string,
@@ -21,16 +22,31 @@ export function connectStream(
     return `${proto}://${location.host}/api/projects/${projectId}/stream`
   }
 
+  let attempt = 0
+
   const open = (isRetry: boolean): void => {
-    if (isRetry) onReplay()
-    ws = new WebSocket(url())
-    ws.onmessage = (m: MessageEvent<string>) => {
+    if (closedByUs) return
+    const socket = new WebSocket(url())
+    ws = socket
+    socket.onopen = () => {
+      attempt = 0
+      // Reset only once the replaying connection is actually up, so a down
+      // server doesn't blank the view while we retry.
+      if (isRetry && !closedByUs) onReplay()
+    }
+    socket.onmessage = (m: MessageEvent<string>) => {
+      // A closing socket can still deliver buffered frames; never let them
+      // leak into whatever run is selected next.
+      if (closedByUs || socket !== ws) return
       const ev = JSON.parse(m.data) as StreamEvent
       if (ev.type === 'completed') done = true
       onEvent(ev)
     }
-    ws.onclose = () => {
-      if (!closedByUs && !done) retry = setTimeout(() => open(true), 1000)
+    socket.onclose = () => {
+      if (closedByUs || done || socket !== ws) return
+      const delay = Math.min(1000 * 2 ** attempt, 10000)
+      attempt += 1
+      retry = setTimeout(() => open(true), delay)
     }
   }
 
