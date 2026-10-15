@@ -108,9 +108,7 @@ class BaseAgent(ABC):
                 agent=self.name,
                 error=str(exc),
             )
-            raise AgentOutputError(
-                f"{self.name}: response was not valid JSON"
-            ) from exc
+            raise AgentOutputError(f"{self.name}: response was not valid JSON") from exc
 
         try:
             validated = schema.model_validate(data)
@@ -139,7 +137,9 @@ class BaseAgent(ABC):
         try:
             content = response.choices[0].message.content
         except (AttributeError, IndexError, KeyError) as exc:
-            raise AgentOutputError("malformed LLM response (no message content)") from exc
+            raise AgentOutputError(
+                "malformed LLM response (no message content)"
+            ) from exc
         return content or ""
 
     # --- subclass contract ------------------------------------------------ #

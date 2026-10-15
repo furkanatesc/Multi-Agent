@@ -185,7 +185,7 @@ class SecurityAgent(BaseAgent):
         for path, content in files.items():
             block = f"--- FILE: {path} ---\n{content}"
             if used + len(block) > _MAX_PROMPT_CHARS:
-                out.append(f"--- (remaining files omitted for length) ---")
+                out.append("--- (remaining files omitted for length) ---")
                 break
             out.append(block)
             used += len(block)

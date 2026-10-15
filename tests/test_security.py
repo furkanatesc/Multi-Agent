@@ -34,7 +34,6 @@ from src.agents.security.schemas import (
 from src.agents.security.tools import check_dependencies_tool
 from src.integrations.docker_runner import CommandResult, DockerError, DockerRunner
 
-
 # --------------------------------------------------------------------------- #
 # OWASP catalog
 # --------------------------------------------------------------------------- #
@@ -194,7 +193,9 @@ def test_dependency_audit_no_manifest() -> None:
 
 
 def test_dependency_audit_flags_floating_pubspec() -> None:
-    files = {"pubspec.yaml": "dependencies:\n  http: any\n  flutter:\n    sdk: flutter\n"}
+    files = {
+        "pubspec.yaml": "dependencies:\n  http: any\n  flutter:\n    sdk: flutter\n"
+    }
     result = check_dependencies_tool(files)
     assert "floating" in result.output.lower()
 
@@ -210,8 +211,7 @@ class _FakeRunner:
     def __init__(self, output: str = "no findings") -> None:
         self._output = output
 
-    def ensure_image(self, tag: str, dockerfile: str) -> None:
-        ...
+    def ensure_image(self, tag: str, dockerfile: str) -> None: ...
 
     def run_command(
         self,

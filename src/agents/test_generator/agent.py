@@ -79,9 +79,7 @@ class TestGeneratorAgent(BaseAgent):
         self.target_coverage = float(
             target_coverage
             if target_coverage is not None
-            else settings.guardrails.get(
-                "min_test_coverage", _DEFAULT_TARGET_COVERAGE
-            )
+            else settings.guardrails.get("min_test_coverage", _DEFAULT_TARGET_COVERAGE)
         )
 
     # --- public API (per sprint plan) ------------------------------------- #
@@ -118,7 +116,9 @@ class TestGeneratorAgent(BaseAgent):
         coverage = self._measure_coverage({**files, **test_files}, platform)
         if coverage.available:
             tests_passed = coverage.percent >= self.target_coverage
-            cov_note = f"coverage={coverage.percent:.1f}% (target {self.target_coverage:.0f}%)"
+            cov_note = (
+                f"coverage={coverage.percent:.1f}% (target {self.target_coverage:.0f}%)"
+            )
         else:
             tests_passed = True  # cannot verify offline; let the Reviewer judge
             cov_note = "coverage not measured (Docker unavailable)"
