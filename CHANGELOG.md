@@ -8,7 +8,15 @@ This file is updated at every **sprint & PR closure**.
 
 ## [Unreleased]
 
-_Nothing yet — next: **Sprint 8 — Dashboard UI**._
+#### Added (Sprint 8 — PR-A — Dashboard streaming backend, `feature/s8a-dashboard-backend`)
+- Sprint 8 PR-A — dashboard streaming backend: in-memory `RunManager`/`RunRecord` (`src/api/run_manager.py`) with async event history; stream→asyncio bridge + background run drivers (`src/api/streaming.py`, a stream error resolves the run to `failed` instead of hanging); **WS `/api/projects/{id}/stream`** (history replay + live); async-start **`POST /api/projects?mode=real|demo`**; `GET /api/projects` (run list) + `GET /api/projects/{id}` (snapshot); keyless **demo graph** (`src/orchestrator/demo.py` — stub agents, real HITL gates) so the dashboard is demoable without API keys/Docker.
+- `CORS_ORIGINS` setting + `CORSMiddleware`. Dev dep `pytest-asyncio` (`asyncio_mode=auto`).
+- Tests: 236 passing, 1 skipped; `mypy --strict` clean; ruff clean on new/changed files.
+
+#### Changed
+- **`POST /api/projects` contract:** now returns `{project_id, mode}` immediately and runs the pipeline in the background (was: synchronous run returning the paused/final state). `POST /api/hitl/{id}/approve` returns `{project_id, accepted: true}` and resumes in the background; 404/409 semantics kept, now checked against the `RunManager` record.
+
+_Next: **Sprint 8 PR-B — Vue 3 dashboard frontend**._
 
 ---
 
