@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at 20% 10%, #111634 0%, #05060f 55%);
+  color: #e5e9f5;
+  font-family: 'Outfit', sans-serif;
+  min-height: 100vh;
+}
+
+.panel {
+  background: rgba(17, 22, 52, 0.6);
+  border: 1px solid rgba(56, 225, 255, 0.12);
+  border-radius: 14px;
+  backdrop-filter: blur(8px);
+}
+
+.glow-text {
+  text-shadow: 0 0 12px rgba(56, 225, 255, 0.6);
+}
