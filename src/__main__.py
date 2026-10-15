@@ -146,7 +146,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     print("\n=== Pipeline result ===")
     print(f"status        : {response.status}")
-    print(f"platform      : {response.architecture_spec and response.architecture_spec.get('tech_stack', {}).get('platform')}")
+    spec = response.architecture_spec
+    platform = spec and spec.get("tech_stack", {}).get("platform")
+    print(f"platform      : {platform}")
     print(f"security score: {response.security_score}")
     print(f"review        : {response.review_decision}")
     print(f"files         : {len(response.source_code)} generated")

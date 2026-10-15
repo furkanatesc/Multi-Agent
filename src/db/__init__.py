@@ -1,1 +1,1 @@
-"""Database layer: SQLAlchemy models, session/pool management, and checkpointer wiring."""
+"""Database layer: SQLAlchemy models, session/pool management, checkpointer wiring."""

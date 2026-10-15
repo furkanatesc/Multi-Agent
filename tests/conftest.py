@@ -25,12 +25,13 @@ def _stub_architect_agent(monkeypatch: pytest.MonkeyPatch) -> None:
     """
 
     class _FakeArchitect:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            ...
+        def __init__(self, *args: Any, **kwargs: Any) -> None: ...
 
         def run(self, state: AgentState) -> dict[str, Any]:
             return {
-                "messages": [AIMessage(content="[architect] stub ADR", name="architect")],
+                "messages": [
+                    AIMessage(content="[architect] stub ADR", name="architect")
+                ],
                 "architecture_spec": {
                     "project_name": "TestApp",
                     "tech_stack": {"platform": "react-native"},
@@ -57,8 +58,7 @@ def _stub_coder_agent(monkeypatch: pytest.MonkeyPatch) -> None:
     """
 
     class _FakeCoder:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            ...
+        def __init__(self, *args: Any, **kwargs: Any) -> None: ...
 
         def run(self, state: AgentState) -> dict[str, Any]:
             return {
@@ -99,8 +99,7 @@ def _stub_inner_loop_runner(monkeypatch: pytest.MonkeyPatch) -> None:
             return self.lint_passed and self.tests_passed
 
     class _FakeInnerLoop:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            ...
+        def __init__(self, *args: Any, **kwargs: Any) -> None: ...
 
         def run(self, files: dict[str, str], platform: Any) -> _FakeResult:
             return _FakeResult(dict(files or {}))
@@ -120,8 +119,7 @@ def _stub_security_agent(monkeypatch: pytest.MonkeyPatch) -> None:
     """
 
     class _FakeSecurity:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            ...
+        def __init__(self, *args: Any, **kwargs: Any) -> None: ...
 
         def run(self, state: AgentState) -> dict[str, Any]:
             return {
@@ -149,8 +147,7 @@ def _stub_test_generator_agent(monkeypatch: pytest.MonkeyPatch) -> None:
     """
 
     class _FakeTestGenerator:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            ...
+        def __init__(self, *args: Any, **kwargs: Any) -> None: ...
 
         def run(self, state: AgentState) -> dict[str, Any]:
             return {
@@ -167,9 +164,7 @@ def _stub_test_generator_agent(monkeypatch: pytest.MonkeyPatch) -> None:
                 "status": "test_generation",
             }
 
-    monkeypatch.setattr(
-        "src.orchestrator.nodes.TestGeneratorAgent", _FakeTestGenerator
-    )
+    monkeypatch.setattr("src.orchestrator.nodes.TestGeneratorAgent", _FakeTestGenerator)
 
 
 @pytest.fixture(autouse=True)
@@ -184,8 +179,7 @@ def _stub_reviewer_agent(monkeypatch: pytest.MonkeyPatch) -> None:
     """
 
     class _FakeReviewer:
-        def __init__(self, *args: Any, **kwargs: Any) -> None:
-            ...
+        def __init__(self, *args: Any, **kwargs: Any) -> None: ...
 
         def run(self, state: AgentState) -> dict[str, Any]:
             outer = int(state.get("outer_loop_count", 0)) + 1

@@ -16,6 +16,11 @@ This file is updated at every **sprint & PR closure**.
 #### Changed
 - **`POST /api/projects` contract:** now returns `{project_id, mode}` immediately and runs the pipeline in the background (was: synchronous run returning the paused/final state). `POST /api/hitl/{id}/approve` returns `{project_id, accepted: true}` and resumes in the background; 404/409 semantics kept, now checked against the `RunManager` record.
 
+#### Changed (chore — repo-wide ruff cleanup, `chore/ruff-cleanup`)
+- Fixed all 57 pre-existing `ruff check .` errors (34 E501, 11 W293, 7 I001, 3 W291, 1 F401, 1 F541) — autofix + `ruff format` on affected files; no behavior change.
+- CI now gates on **`ruff check .`** (new lint step before mypy) so lint debt can't silently accumulate again.
+- `pyproject.toml`: moved `select`/`ignore` under `[tool.ruff.lint]` (top-level form deprecated); dev dep `ruff>=0.1.0`.
+
 _Next: **Sprint 8 PR-B — Vue 3 dashboard frontend**._
 
 ---

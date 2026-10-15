@@ -14,8 +14,9 @@ from collections.abc import Sequence
 from typing import Union
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "001_initial"
@@ -31,12 +32,26 @@ def upgrade() -> None:
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("prompt", sa.Text(), nullable=False),
         sa.Column("platform", sa.String(length=32), nullable=True),
-        sa.Column("status", sa.String(length=32), nullable=False, server_default="pending"),
-        sa.Column("architecture_spec", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column(
+            "status", sa.String(length=32), nullable=False, server_default="pending"
+        ),
+        sa.Column(
+            "architecture_spec", postgresql.JSONB(astext_type=sa.Text()), nullable=True
+        ),
         sa.Column("security_score", sa.Integer(), nullable=True),
         sa.Column("total_cost_usd", sa.Float(), nullable=False, server_default="0"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
 
@@ -45,16 +60,25 @@ def upgrade() -> None:
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("project_id", sa.String(length=36), nullable=False),
         sa.Column("agent_name", sa.String(length=64), nullable=False),
-        sa.Column("status", sa.String(length=32), nullable=False, server_default="running"),
+        sa.Column(
+            "status", sa.String(length=32), nullable=False, server_default="running"
+        ),
         sa.Column("model_used", sa.String(length=128), nullable=True),
         sa.Column("input_summary", sa.Text(), nullable=True),
         sa.Column("output_summary", sa.Text(), nullable=True),
         sa.Column("prompt_tokens", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("completion_tokens", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "completion_tokens", sa.Integer(), nullable=False, server_default="0"
+        ),
         sa.Column("cost_usd", sa.Float(), nullable=False, server_default="0"),
         sa.Column("iteration", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("error", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -65,10 +89,17 @@ def upgrade() -> None:
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("project_id", sa.String(length=36), nullable=False),
         sa.Column("gate_type", sa.String(length=32), nullable=False),
-        sa.Column("status", sa.String(length=32), nullable=False, server_default="pending"),
+        sa.Column(
+            "status", sa.String(length=32), nullable=False, server_default="pending"
+        ),
         sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("feedback", sa.Text(), nullable=True),
-        sa.Column("requested_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "requested_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
@@ -82,9 +113,16 @@ def upgrade() -> None:
         sa.Column("agent_name", sa.String(length=64), nullable=True),
         sa.Column("model", sa.String(length=128), nullable=True),
         sa.Column("prompt_tokens", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("completion_tokens", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "completion_tokens", sa.Integer(), nullable=False, server_default="0"
+        ),
         sa.Column("cost_usd", sa.Float(), nullable=False, server_default="0"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )

@@ -51,6 +51,9 @@ jobs:
           # Binary build bundles libpq so psycopg can connect on the runner.
           pip install "psycopg[binary]"
 
+      - name: Lint (ruff)
+        run: ruff check .
+
       - name: Type check (mypy --strict)
         run: mypy src/ --strict
 

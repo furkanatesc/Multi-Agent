@@ -17,13 +17,11 @@ from pydantic import ValidationError
 from src.agents.test_generator.agent import TestGeneratorAgent, _kinds_for
 from src.agents.test_generator.schemas import GeneratedTestFile, TestSuite
 from src.agents.test_generator.tools import (
-    CoverageResult,
     analyze_code_structure_tool,
     parse_coverage_percent,
     run_coverage_tool,
 )
 from src.integrations.docker_runner import CommandResult, DockerError, DockerRunner
-
 
 # --------------------------------------------------------------------------- #
 # structure analysis (Docker-free)
@@ -126,8 +124,7 @@ class _FakeRunner:
         self._output = output
         self.commands: list[str] = []
 
-    def ensure_image(self, tag: str, dockerfile: str) -> None:
-        ...
+    def ensure_image(self, tag: str, dockerfile: str) -> None: ...
 
     def run_command(
         self,
@@ -210,7 +207,9 @@ def test_generate_unit_tests_returns_suite() -> None:
 
 def test_run_merges_tests_and_passes_when_coverage_meets_target() -> None:
     agent = _agent(_SUITE, _FakeRunner("All files | 82 %"))
-    update = agent.run({"source_code": {"src/auth.ts": "x"}, "platform": "react-native"})
+    update = agent.run(
+        {"source_code": {"src/auth.ts": "x"}, "platform": "react-native"}
+    )
 
     assert update["source_code"] == {
         "src/__tests__/auth.test.ts": _SUITE["files"][0]["content"]
@@ -222,7 +221,9 @@ def test_run_merges_tests_and_passes_when_coverage_meets_target() -> None:
 
 def test_run_fails_when_coverage_below_target() -> None:
     agent = _agent(_SUITE, _FakeRunner("All files | 55 %"))
-    update = agent.run({"source_code": {"src/auth.ts": "x"}, "platform": "react-native"})
+    update = agent.run(
+        {"source_code": {"src/auth.ts": "x"}, "platform": "react-native"}
+    )
     assert update["tests_passed"] is False
 
 
@@ -235,5 +236,7 @@ def test_run_proceeds_when_docker_unavailable(
         MagicMock(side_effect=DockerError("daemon down")),
     )
     agent = _agent(_SUITE, None)
-    update = agent.run({"source_code": {"src/auth.ts": "x"}, "platform": "react-native"})
+    update = agent.run(
+        {"source_code": {"src/auth.ts": "x"}, "platform": "react-native"}
+    )
     assert update["tests_passed"] is True  # cannot verify offline; proceed
