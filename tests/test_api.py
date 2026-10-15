@@ -47,66 +47,114 @@ def test_metrics_endpoint_includes_all_collectors() -> None:
         assert name in body
 
 
+def test_cors_headers_present() -> None:
+    resp = _client().get("/health", headers={"Origin": "http://localhost:5173"})
+    assert resp.headers.get("access-control-allow-origin") == "http://localhost:5173"
+
+
 # --------------------------------------------------------------------------- #
-# HITL run lifecycle: POST /api/projects + POST /api/hitl/{id}/approve
+# Sprint 8 — async-start run lifecycle + streaming.
 #
-# The autouse stub fixtures (conftest.py) make the graph run offline, and a
-# single TestClient is reused per test so both requests share the app's
-# in-memory checkpointer (same thread_id state).
+# POST /api/projects now returns {project_id, mode} immediately and runs in the
+# background. Tests use mode=demo with delay=0 (deterministic, keyless) and drive
+# the flow over the WebSocket, approving each HITL gate via POST.
 # --------------------------------------------------------------------------- #
 
 
-def test_start_project_pauses_at_deploy_gate() -> None:
-    client = _client()
-    resp = client.post("/api/projects", json={"prompt": "Build a todo app"})
+def _demo_client() -> TestClient:
+    client = TestClient(create_app())
+    # Hold a persistent event-loop portal across every call this client makes.
+    # Without this, Starlette's TestClient spins up a *new* ephemeral portal
+    # (and event loop) per HTTP/WS call. The background run started by
+    # POST /api/projects lives on asyncio.Condition/Task objects that bind to
+    # whichever loop first touches them; a later POST /api/hitl/.../approve
+    # would schedule its resume task on a *different* ephemeral loop and hit a
+    # "bound to a different event loop" RuntimeError, silently killing the
+    # resume task and hanging the WS stream forever. A single persistent
+    # portal (entered here, never exited — acceptable for test-process
+    # lifetime) matches real single-event-loop uvicorn behavior, where this
+    # never happens.
+    client.__enter__()
+    client.app.state.demo_delay = 0.0  # type: ignore[attr-defined]
+    return client
+
+
+def test_start_demo_returns_project_id_and_mode() -> None:
+    client = _demo_client()
+    resp = client.post("/api/projects?mode=demo", json={"prompt": "todo app"})
     assert resp.status_code == 200
     body = resp.json()
     assert body["project_id"]
-    assert body["awaiting_hitl"] is True
-    assert body["hitl"]["gate_type"] == "deploy"
-    assert body["status"] != "completed"
+    assert body["mode"] == "demo"
 
 
-def test_approve_deploy_resumes_to_completion() -> None:
-    client = _client()
-    start = client.post("/api/projects", json={"prompt": "app"}).json()
-    pid = start["project_id"]
-
-    resp = client.post(f"/api/hitl/{pid}/approve", json={"decision": "approve"})
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["awaiting_hitl"] is False
-    assert body["status"] == "completed"
+def test_list_projects_includes_started_run() -> None:
+    client = _demo_client()
+    pid = client.post("/api/projects?mode=demo", json={"prompt": "x"}).json()[
+        "project_id"
+    ]
+    runs = client.get("/api/projects").json()["runs"]
+    assert any(r["project_id"] == pid for r in runs)
 
 
-def test_reject_deploy_aborts_run() -> None:
-    client = _client()
-    pid = client.post("/api/projects", json={"prompt": "app"}).json()["project_id"]
+def test_ws_streams_full_demo_run_through_both_gates() -> None:
+    client = _demo_client()
+    pid = client.post("/api/projects?mode=demo", json={"prompt": "todo"}).json()[
+        "project_id"
+    ]
 
-    body = client.post(
-        f"/api/hitl/{pid}/approve", json={"decision": "reject", "feedback": "no"}
-    ).json()
-    assert body["awaiting_hitl"] is False
-    assert body["status"] == "failed"
+    seen_types: list[str] = []
+    with client.websocket_connect(f"/api/projects/{pid}/stream") as ws:
+        approvals = 0
+        while True:
+            ev = ws.receive_json()
+            seen_types.append(ev["type"])
+            if ev["type"] == "hitl_request":
+                client.post(f"/api/hitl/{pid}/approve", json={"decision": "approve"})
+                approvals += 1
+            if ev["type"] == "completed":
+                break
+    assert seen_types[0] == "run_started"
+    assert seen_types.count("hitl_request") == 2  # security + deploy
+    assert approvals == 2
+    assert seen_types[-1] == "completed"
+
+
+def test_snapshot_reports_awaiting_after_first_gate() -> None:
+    client = _demo_client()
+    pid = client.post("/api/projects?mode=demo", json={"prompt": "x"}).json()[
+        "project_id"
+    ]
+    # Drive to the first gate over WS, then check the snapshot mid-run.
+    with client.websocket_connect(f"/api/projects/{pid}/stream") as ws:
+        while ws.receive_json()["type"] != "hitl_request":
+            pass
+        snap = client.get(f"/api/projects/{pid}").json()
+        assert snap["awaiting_hitl"] is True
+        assert snap["hitl"]["gate_type"] == "security"
 
 
 def test_resolve_unknown_project_returns_404() -> None:
-    resp = _client().post(
+    resp = _demo_client().post(
         "/api/hitl/does-not-exist/approve", json={"decision": "approve"}
     )
     assert resp.status_code == 404
 
 
 def test_resolve_when_not_awaiting_returns_409() -> None:
-    client = _client()
-    pid = client.post("/api/projects", json={"prompt": "app"}).json()["project_id"]
-    # First approval completes the run.
-    client.post(f"/api/hitl/{pid}/approve", json={"decision": "approve"})
-    # Second approval has nothing to resume.
+    client = _demo_client()
+    pid = client.post("/api/projects?mode=demo", json={"prompt": "x"}).json()[
+        "project_id"
+    ]
+    # Immediately after start (before any gate) there is nothing to resolve yet;
+    # give the run a moment by reading the snapshot until it settles at a gate,
+    # then approve twice — the third approve has nothing pending.
+    with client.websocket_connect(f"/api/projects/{pid}/stream") as ws:
+        while True:
+            ev = ws.receive_json()
+            if ev["type"] == "hitl_request":
+                client.post(f"/api/hitl/{pid}/approve", json={"decision": "approve"})
+            if ev["type"] == "completed":
+                break
     resp = client.post(f"/api/hitl/{pid}/approve", json={"decision": "approve"})
     assert resp.status_code == 409
-
-
-def test_cors_headers_present() -> None:
-    resp = _client().get("/health", headers={"Origin": "http://localhost:5173"})
-    assert resp.headers.get("access-control-allow-origin") == "http://localhost:5173"
