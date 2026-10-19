@@ -122,3 +122,42 @@ def test_drive_stream_worker_exception_resolves_run_as_failed() -> None:
     assert last_event["type"] == "completed"
     assert last_event["status"] == "failed"
     assert "boom" in last_event["error"]
+
+
+def test_hitl_request_is_only_visible_once_run_is_awaiting() -> None:
+    """Regression: observers must never see ``hitl_request`` before the run is
+    resumable. Otherwise a fast client approves → 409 → the run hangs forever
+    (CI hang in test_ws_streams_full_demo_run_through_both_gates)."""
+    import threading
+
+    release = threading.Event()
+
+    class _Interrupt:
+        value = {"gate_type": "security"}
+
+    class _SlowTailGraph:
+        def stream(self, *_a: object, **_k: object):  # type: ignore[no-untyped-def]
+            yield {"__interrupt__": (_Interrupt(),)}
+            release.wait(timeout=5)  # stream tail still running after the chunk
+
+    async def scenario() -> bool:
+        mgr = RunManager()
+        rec = mgr.create("r1", "demo", "x")
+        task = asyncio.create_task(
+            run_pipeline(mgr, rec, _SlowTailGraph(), {}, {"configurable": {}})
+        )
+        # Let the stream tail finish shortly; the request must not be visible
+        # (with awaiting_hitl still False) during that window.
+        threading.Timer(0.3, release.set).start()
+        async with rec.condition:
+            await asyncio.wait_for(
+                rec.condition.wait_for(
+                    lambda: any(e["type"] == "hitl_request" for e in rec.events)
+                ),
+                timeout=2,
+            )
+            awaiting = rec.awaiting_hitl
+        await task
+        return awaiting
+
+    assert asyncio.run(scenario()) is True

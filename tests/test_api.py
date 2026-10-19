@@ -110,7 +110,10 @@ def test_ws_streams_full_demo_run_through_both_gates() -> None:
             ev = ws.receive_json()
             seen_types.append(ev["type"])
             if ev["type"] == "hitl_request":
-                client.post(f"/api/hitl/{pid}/approve", json={"decision": "approve"})
+                resp = client.post(
+                    f"/api/hitl/{pid}/approve", json={"decision": "approve"}
+                )
+                assert resp.status_code == 200  # a 409 here would hang the stream
                 approvals += 1
             if ev["type"] == "completed":
                 break

@@ -21,7 +21,17 @@ This file is updated at every **sprint & PR closure**.
 - CI now gates on **`ruff check .`** (new lint step before mypy) so lint debt can't silently accumulate again.
 - `pyproject.toml`: moved `select`/`ignore` under `[tool.ruff.lint]` (top-level form deprecated); dev dep `ruff>=0.1.0`.
 
-_Next: **Sprint 8 PR-B — Vue 3 dashboard frontend**._
+#### Added (Sprint 8 — PR-B — Vue 3 dashboard, `feature/s8b-dashboard-frontend`)
+- Sprint 8 PR-B — Vue 3 dashboard (`frontend/`, Vue 3.5 + Vite 6 + Pinia + Tailwind 3, TS strict): start a run from a prompt (platform + **keyless demo mode**), run list with live status badges, hero **AgentGraph** (SVG constellation of the 10 pipeline nodes, GSAP pulse on the waiting gate), **HITL panel** (approve/reject + feedback at the security & deploy gates), streaming **logs**, **metric cards** (cost w/ d3 sparkline, iterations, security score, review verdict). Dev server proxies `/api` (incl. WS) → `:8000`.
+- WebSocket client auto-reconnects; since the backend replays history on every connect, derived state is reset before replay (no double-counted cost/logs).
+- CI: new **`frontend`** job (`npm ci && npm run build` = `vue-tsc -b` + `vite build`).
+- Verified end-to-end in a browser: demo run → security gate approve → deploy gate approve → `completed`, all 10 nodes lit, no console errors.
+- Plan deviations: dropped unused `three`/`lenis` deps; split tsconfig into app/node (`noEmit`) per current create-vite layout; added a `muted` text color (plan's `space-600` was unreadable on the dark background); SQLGen reference components were not present on disk, so the aesthetic uses the plan's tokens only.
+
+#### Fixed (Sprint 8 — PR-B)
+- **HITL race → CI hang:** `hitl_request` was published to WebSocket observers *before* the run was flagged `awaiting_hitl` (and while the stream thread was still running), so a client approving instantly got a `409` and the run hung forever — `test_ws_streams_full_demo_run_through_both_gates` stalled CI for 6 h on PR #16 and on `develop` after #15. `src/api/streaming.py` now defers the `hitl_request` event until the stream ends and `awaiting_hitl` is set. Regression test `test_hitl_request_is_only_visible_once_run_is_awaiting`; the WS API test now asserts the approve call returns 200 (fails fast instead of hanging). Suite 237 pass / 1 skip.
+
+_Next: Sprint 8 closure → `develop → main` (M3 candidate)._
 
 ---
 
