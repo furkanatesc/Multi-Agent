@@ -5,8 +5,9 @@ is driven inside a worker thread (``asyncio.to_thread``). Each chunk is converte
 to WebSocket events and handed back to the loop via ``run_coroutine_threadsafe``
 so the :class:`RunManager` condition wakes any observers immediately (spec §4.1).
 
-A run streams until it either (a) hits a HITL ``__interrupt__`` — the stream ends
-and the run is left ``awaiting_hitl`` for the checkpointer to resume — or (b) runs
+A run streams until it either (a) hits a HITL ``__interrupt__`` — the stream ends,
+the run is left ``awaiting_hitl`` for the checkpointer to resume, and only then is
+the ``hitl_request`` event published — or (b) runs
 to completion, at which point the record is marked closed.
 """
 
@@ -102,7 +103,9 @@ async def _drive_stream(
         for chunk in graph.stream(graph_input, config=config, stream_mode="updates"):
             for event in chunk_to_events(chunk):
                 if event["type"] == "hitl_request":
-                    saw_interrupt["payload"] = event["payload"]
+                    # Defer: published only once the run is resumable (below).
+                    saw_interrupt["event"] = event
+                    continue
                 _emit(manager.append(record, event))
 
     try:
@@ -116,9 +119,12 @@ async def _drive_stream(
         return
 
     if saw_interrupt:
-        await manager.set_awaiting(
-            record, saw_interrupt["payload"], "awaiting_hitl"
-        )
+        # Flip ``awaiting_hitl`` *before* observers see ``hitl_request``, and only
+        # after the stream thread has finished, so a client approving the instant
+        # it sees the request never gets a 409 or races the still-running stream.
+        event = saw_interrupt["event"]
+        await manager.set_awaiting(record, event["payload"], "awaiting_hitl")
+        await manager.append(record, event)
     else:
         snapshot = graph.get_state(config)
         status = (
