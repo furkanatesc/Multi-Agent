@@ -48,7 +48,9 @@ def _fake_response(content: str) -> SimpleNamespace:
     )
 
 
-def _agent_with_response(content: str, costs: tuple[float, float] = (0.0, 0.05)) -> ArchitectAgent:
+def _agent_with_response(
+    content: str, costs: tuple[float, float] = (0.0, 0.05)
+) -> ArchitectAgent:
     """Construct an ArchitectAgent wired to a mock client returning ``content``."""
     client = MagicMock()
     client.completion.return_value = _fake_response(content)
@@ -121,7 +123,9 @@ def test_analyze_requirements_suggests_react_native_for_ecommerce() -> None:
 
 
 def test_analyze_requirements_suggests_flutter_for_performance() -> None:
-    result = analyze_requirements("A high performance real-time gaming app with heavy graphics")
+    result = analyze_requirements(
+        "A high performance real-time gaming app with heavy graphics"
+    )
     assert result["suggested_platform"] == "flutter"
 
 
@@ -132,10 +136,20 @@ def test_analyze_requirements_neutral_when_no_signals() -> None:
 
 def test_default_folder_structure_per_framework() -> None:
     rn = default_folder_structure(
-        TechStack(platform="react-native", language="TS", framework="React Native", state_management="Redux")
+        TechStack(
+            platform="react-native",
+            language="TS",
+            framework="React Native",
+            state_management="Redux",
+        )
     )
     flutter = default_folder_structure(
-        TechStack(platform="flutter", language="Dart", framework="Flutter", state_management="Riverpod")
+        TechStack(
+            platform="flutter",
+            language="Dart",
+            framework="Flutter",
+            state_management="Riverpod",
+        )
     )
     assert any(e.path.startswith("src/") for e in rn.entries)
     assert any(e.path.startswith("lib/") for e in flutter.entries)

@@ -26,7 +26,9 @@ class GeneratedTestFile(_Schema):
     """A single generated test file."""
 
     path: str = Field(
-        description="Relative path for the test file, e.g. 'src/__tests__/auth.test.ts'."
+        description=(
+            "Relative path for the test file, e.g. 'src/__tests__/auth.test.ts'."
+        )
     )
     content: str = Field(description="Complete, runnable test file source.")
     kind: TestKind = Field(description="unit | widget | integration.")

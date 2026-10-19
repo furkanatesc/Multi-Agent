@@ -52,7 +52,8 @@ class TechStack(_Schema):
         default=None, description="Local/remote database, e.g. SQLite or PostgreSQL."
     )
     key_libraries: list[str] = Field(
-        default_factory=list, description="Other notable libraries (navigation, http, ...)."
+        default_factory=list,
+        description="Other notable libraries (navigation, http, ...).",
     )
 
 
@@ -80,7 +81,9 @@ class ArchitectureDecision(_Schema):
     status: ADRStatus = Field(default="accepted", description="ADR status.")
     context: str = Field(description="Forces and background driving the decision.")
     decision: str = Field(description="The decision that was made.")
-    consequences: str = Field(description="Resulting trade-offs, positive and negative.")
+    consequences: str = Field(
+        description="Resulting trade-offs, positive and negative."
+    )
     alternatives_considered: list[str] = Field(
         default_factory=list, description="Other options that were weighed."
     )
@@ -89,7 +92,9 @@ class ArchitectureDecision(_Schema):
 class ADRDocument(_Schema):
     """Top-level Architect output: the full architecture decision document."""
 
-    project_name: str = Field(description="Concise project name derived from the request.")
+    project_name: str = Field(
+        description="Concise project name derived from the request."
+    )
     summary: str = Field(description="Executive summary of the chosen architecture.")
     architecture_pattern: ArchitecturePattern = Field(
         description="Overall architectural pattern."

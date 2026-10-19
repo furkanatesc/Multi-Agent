@@ -1,13 +1,15 @@
 from pathlib import Path
 from typing import Any, Dict
+
 import yaml
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", 
-        env_file_encoding="utf-8", 
+        env_file=".env",
+        env_file_encoding="utf-8",
         extra="ignore"
     )
 
@@ -23,6 +25,10 @@ class Settings(BaseSettings):
     REDIS_URL: str = Field(default="redis://localhost:6379/0")
 
     GITHUB_TOKEN: str = Field(default="")
+    CORS_ORIGINS: str = Field(
+        default="http://localhost:5173,http://127.0.0.1:5173",
+        description="Comma-separated list of allowed frontend origins for CORS.",
+    )
     DOCKER_HOST: str = Field(default="npipe:////./pipe/docker_engine")
 
     # Configuration base paths

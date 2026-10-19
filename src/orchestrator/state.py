@@ -58,7 +58,9 @@ SourceCode = dict[str, str]
 # --------------------------------------------------------------------------- #
 
 
-def merge_source_code(left: Optional[SourceCode], right: Optional[SourceCode]) -> SourceCode:
+def merge_source_code(
+    left: Optional[SourceCode], right: Optional[SourceCode]
+) -> SourceCode:
     """Reducer that incrementally merges generated files.
 
     The Coder agent emits files module-by-module, so later updates must be
@@ -179,7 +181,9 @@ class UserRequest(BaseModel):
         default_factory=dict, description="Free-form user preferences/constraints."
     )
     max_cost_usd: Optional[float] = Field(
-        default=None, gt=0, description="Per-project budget override (defaults to guardrails)."
+        default=None,
+        gt=0,
+        description="Per-project budget override (defaults to guardrails).",
     )
 
 
