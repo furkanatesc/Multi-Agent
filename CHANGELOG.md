@@ -8,6 +8,13 @@ This file is updated at every **sprint & PR closure**.
 
 ## [Unreleased]
 
+_Nothing yet — next sprint TBD._
+
+---
+
+## [v0.6-beta] — 2026-10-19 — 🏷️ Milestone M3: Live Dashboard
+Released via `develop → main`. Builds on M2 (Full Autonomous Pipeline) with Sprint 8: a real-time streaming backend (background `graph.stream()` → WebSocket with history replay, async-start run lifecycle, keyless **demo mode**) and a **Vue 3 live dashboard** (agent-graph hero, HITL approve/reject panel, live logs, metric cards). Also a repo-wide ruff cleanup with CI now gating on lint, and a fix for a HITL race that hung CI. **237 tests passing**, 1 skipped (Postgres integration, passes on CI); `mypy --strict` + `ruff` clean; CI green (backend + frontend jobs). (PRs #14–#16.)
+
 #### Added (Sprint 8 — PR-A — Dashboard streaming backend, `feature/s8a-dashboard-backend`)
 - Sprint 8 PR-A — dashboard streaming backend: in-memory `RunManager`/`RunRecord` (`src/api/run_manager.py`) with async event history; stream→asyncio bridge + background run drivers (`src/api/streaming.py`, a stream error resolves the run to `failed` instead of hanging); **WS `/api/projects/{id}/stream`** (history replay + live); async-start **`POST /api/projects?mode=real|demo`**; `GET /api/projects` (run list) + `GET /api/projects/{id}` (snapshot); keyless **demo graph** (`src/orchestrator/demo.py` — stub agents, real HITL gates) so the dashboard is demoable without API keys/Docker.
 - `CORS_ORIGINS` setting + `CORSMiddleware`. Dev dep `pytest-asyncio` (`asyncio_mode=auto`).
@@ -31,7 +38,6 @@ This file is updated at every **sprint & PR closure**.
 #### Fixed (Sprint 8 — PR-B)
 - **HITL race → CI hang:** `hitl_request` was published to WebSocket observers *before* the run was flagged `awaiting_hitl` (and while the stream thread was still running), so a client approving instantly got a `409` and the run hung forever — `test_ws_streams_full_demo_run_through_both_gates` stalled CI for 6 h on PR #16 and on `develop` after #15. `src/api/streaming.py` now defers the `hitl_request` event until the stream ends and `awaiting_hitl` is set. Regression test `test_hitl_request_is_only_visible_once_run_is_awaiting`; the WS API test now asserts the approve call returns 200 (fails fast instead of hanging). Suite 237 pass / 1 skip.
 
-_Next: Sprint 8 closure → `develop → main` (M3 candidate)._
 
 ---
 
